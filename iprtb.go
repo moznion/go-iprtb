@@ -12,19 +12,34 @@ import (
 // ErrInvalidIPv6Length represents the error that indicates given IPv6 address has invalid length.
 var ErrInvalidIPv6Length = errors.New("given IPv6 address doesn't satisfy the IPv6 length")
 
-// RouteTable is a route table implementation.
+// RouteTable is a routing table implementation.
 type RouteTable struct {
 	routes            *node
 	label2Destination map[string]*net.IPNet
 	mu                sync.Mutex
 }
 
-// Route is an entry of route table.
+// Routes is a list of Route
+type Routes []*Route
+
+func (rs Routes) String() string {
+	str := ""
+	for _, r := range rs {
+		str += r.String() + "\n"
+	}
+	return str
+}
+
+// Route is an entry of routing table.
 type Route struct {
 	Destination      net.IPNet
 	Gateway          net.IP
 	NetworkInterface string
 	Metric           int
+}
+
+func (r Route) String() string {
+	return fmt.Sprintf("%s\t%s\t%s\t%d", r.Destination.String(), r.Gateway.String(), r.NetworkInterface, r.Metric)
 }
 
 // NewRouteTable makes a new RouteTable value.
@@ -41,12 +56,19 @@ type node struct {
 	route       *Route
 }
 
+// AddRoute adds a route to the routing table.
+// If the destination has already existed in the routing table, this overwrites the route information by the given route.
+// In other words, this function behaves as well as "update" against the existing routes.
 func (rt *RouteTable) AddRoute(route *Route) error {
 	rt.mu.Lock()
 	defer rt.mu.Unlock()
 	return rt.addRoute(route)
 }
 
+// AddRouteWithLabel adds a route to the routing table with a label.
+// If the destination has already existed in the routing table, this overwrites the route information by the given route.
+// The label is capable to use by UpdateRouteByLabel and RemoveRouteByLabel functions instead of the actual destination information.
+// If there already had the given label, it overwrites by the given one.
 func (rt *RouteTable) AddRouteWithLabel(label string, route *Route) error {
 	rt.mu.Lock()
 	defer rt.mu.Unlock()
@@ -59,7 +81,9 @@ func (rt *RouteTable) AddRouteWithLabel(label string, route *Route) error {
 	return nil
 }
 
-func (rt *RouteTable) UpdateByLabel(label string, gateway net.IP, nwInterface string, metric int) error {
+// UpdateRouteByLabel updates the existing route that is associated with the label by given parameters.
+// If there is no route that is associated with a given label, this function does nothing.
+func (rt *RouteTable) UpdateRouteByLabel(label string, gateway net.IP, nwInterface string, metric int) error {
 	rt.mu.Lock()
 	defer rt.mu.Unlock()
 
@@ -136,12 +160,16 @@ func (rt *RouteTable) addRoute(route *Route) error {
 	return nil
 }
 
+// RemoveRoute removes a route that is associated with a given destination.
+// If there is no route to remove, this does nothing.
 func (rt *RouteTable) RemoveRoute(destination net.IPNet) error {
 	rt.mu.Lock()
 	defer rt.mu.Unlock()
 	return rt.removeRoute(destination)
 }
 
+// RemoveRouteByLabel removes a route that is associated with a given label, instead of the actual destination information.
+// If there is no route that is associated with a given label or the actual destination, this function does nothing.
 func (rt *RouteTable) RemoveRouteByLabel(label string) error {
 	rt.mu.Lock()
 	defer rt.mu.Unlock()
@@ -203,6 +231,9 @@ func (rt *RouteTable) removeRoute(destination net.IPNet) error {
 	return nil
 }
 
+// MatchRoute attempts to check whether the given IP address matches the routing table or not.
+// If there is matched route, this returns that route information that is wrapped by optional.Some.
+// Else, this returns the value of optional.None.
 func (rt *RouteTable) MatchRoute(target net.IP) (optional.Option[Route], error) {
 	target, err := adjustIPLength(target)
 	if err != nil {
@@ -238,6 +269,9 @@ func (rt *RouteTable) MatchRoute(target net.IP) (optional.Option[Route], error) 
 	return optional.FromNillable[Route](matchedRoute), nil
 }
 
+// FindRoute attempts to find the route information that is matched with the given IP address.
+// If that route is found this returns true.
+// This function doesn't respect the longest match, so the performance of this function would be better than MatchRoute but this doesn't return the actual detailed information.
 func (rt *RouteTable) FindRoute(target net.IP) (bool, error) {
 	target, err := adjustIPLength(target)
 	if err != nil {
@@ -268,11 +302,13 @@ func (rt *RouteTable) FindRoute(target net.IP) (bool, error) {
 	return visitNode.route != nil, nil
 }
 
-func (rt *RouteTable) DumpRouteTable() []*Route {
+// DumpRouteTable dumps the configurations of the routing table.
+// The result value supports String() method so that be able to do stringify.
+func (rt *RouteTable) DumpRouteTable() Routes {
 	return rt.scanNode(rt.routes)
 }
 
-func (rt *RouteTable) scanNode(visitNode *node) []*Route {
+func (rt *RouteTable) scanNode(visitNode *node) Routes {
 	routes := make([]*Route, 0)
 
 	if visitNode.zeroBitNode != nil {

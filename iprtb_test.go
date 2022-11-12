@@ -514,7 +514,7 @@ func TestRouteTable_WithLabel(t *testing.T) {
 		assert.NotEmpty(t, rtb.label2Destination)
 	}
 
-	err = rtb.UpdateByLabel(label, net.IPv4(192, 0, 2, 2), "ifb0", 1)
+	err = rtb.UpdateRouteByLabel(label, net.IPv4(192, 0, 2, 2), "ifb0", 1)
 	assert.NoError(t, err)
 	{
 		maybeMatchedRoute, err := rtb.MatchRoute(net.IPv4(192, 0, 2, 100))
@@ -556,7 +556,7 @@ func TestRouteTable_WithNotExistedLabel(t *testing.T) {
 		assert.Equal(t, route.Gateway, maybeMatchedRoute.Unwrap().Gateway)
 	}
 
-	err = rtb.UpdateByLabel("__invalid_label__", net.IPv4(192, 0, 2, 2), "ifb0", 1)
+	err = rtb.UpdateRouteByLabel("__invalid_label__", net.IPv4(192, 0, 2, 2), "ifb0", 1)
 	assert.NoError(t, err)
 	{
 		// should not be affected
@@ -610,6 +610,7 @@ func TestRouteTable_DumpRouteTable(t *testing.T) {
 	rtb := NewRouteTable()
 	dumped := rtb.DumpRouteTable()
 	assert.Empty(t, dumped)
+	assert.Empty(t, dumped.String())
 
 	nwInterface := "ifb0"
 	metric := 1
@@ -668,4 +669,9 @@ func TestRouteTable_DumpRouteTable(t *testing.T) {
 	assert.Contains(t, dumped, route2)
 	assert.Contains(t, dumped, route3)
 	assert.Contains(t, dumped, route4)
+	assert.Equal(t, `2001:db8::ff/128	2001:db8::ff	ifb0	1
+2001:db8::/32	2001:db8::1	ifb0	1
+192.0.2.255/32	192.0.2.255	ifb0	1
+192.0.2.0/24	192.0.2.1	ifb0	1
+`, dumped.String())
 }
