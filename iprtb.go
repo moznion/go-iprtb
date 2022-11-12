@@ -258,6 +258,27 @@ func (rt *RouteTable) FindRoute(target net.IP) (bool, error) {
 	return visitNode.routeEntry != nil, nil
 }
 
+func (rt *RouteTable) DumpRouteTable() []*RouteEntry {
+	return rt.scanNode(rt.routes)
+}
+
+func (rt *RouteTable) scanNode(visitNode *node) []*RouteEntry {
+	routeEntries := make([]*RouteEntry, 0)
+
+	if visitNode.zeroBitNode != nil {
+		routeEntries = append(routeEntries, rt.scanNode(visitNode.zeroBitNode)...)
+	}
+	if visitNode.oneBitNode != nil {
+		routeEntries = append(routeEntries, rt.scanNode(visitNode.oneBitNode)...)
+	}
+
+	if visitNode.routeEntry != nil {
+		routeEntries = append(routeEntries, visitNode.routeEntry)
+	}
+
+	return routeEntries
+}
+
 func toBit(b byte, rshift int) byte {
 	mask := byte(0b10000000 >> rshift)
 	return byte((b & mask) >> (7 - rshift))

@@ -477,3 +477,71 @@ func TestRouteTable_RemoveRouteByLabel_WithInvalidIpv6(t *testing.T) {
 	err := rtb.RemoveRouteByLabel(label)
 	assert.ErrorIs(t, err, ErrInvalidIPv6Length)
 }
+
+func TestRouteTable_DumpRouteTable(t *testing.T) {
+	rtb := NewRouteTable()
+	dumped := rtb.DumpRouteTable()
+	assert.Empty(t, dumped)
+
+	nwInterface := "ifb0"
+	metric := 1
+
+	dst1 := net.IPNet{
+		IP:   net.IPv4(192, 0, 2, 0),
+		Mask: net.IPv4Mask(255, 255, 255, 0),
+	}
+	gw1 := net.IPv4(192, 0, 2, 1)
+	err := rtb.AddRoute(dst1, gw1, nwInterface, metric)
+	assert.NoError(t, err)
+
+	dst2 := net.IPNet{
+		IP:   net.IPv4(192, 0, 2, 255),
+		Mask: net.IPv4Mask(255, 255, 255, 255),
+	}
+	gw2 := net.IPv4(192, 0, 2, 255)
+	err = rtb.AddRoute(dst2, gw2, nwInterface, metric)
+	assert.NoError(t, err)
+
+	dst3 := net.IPNet{
+		IP:   net.IP{0x20, 0x01, 0x0d, 0xb8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
+		Mask: net.IPMask{0xff, 0xff, 0xff, 0xff, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
+	}
+	gw3 := net.IP{0x20, 0x01, 0x0d, 0xb8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01}
+	err = rtb.AddRoute(dst3, gw3, nwInterface, metric)
+	assert.NoError(t, err)
+
+	dst4 := net.IPNet{
+		IP:   net.IP{0x20, 0x01, 0x0d, 0xb8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff},
+		Mask: net.IPMask{0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff},
+	}
+	gw4 := net.IP{0x20, 0x01, 0x0d, 0xb8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff}
+	err = rtb.AddRoute(dst4, gw4, nwInterface, metric)
+	assert.NoError(t, err)
+
+	dumped = rtb.DumpRouteTable()
+	assert.Len(t, dumped, 4)
+	assert.Contains(t, dumped, &RouteEntry{
+		Destination: dst1,
+		Gateway:     gw1,
+		NwInterface: nwInterface,
+		Metric:      metric,
+	})
+	assert.Contains(t, dumped, &RouteEntry{
+		Destination: dst2,
+		Gateway:     gw2,
+		NwInterface: nwInterface,
+		Metric:      metric,
+	})
+	assert.Contains(t, dumped, &RouteEntry{
+		Destination: dst3,
+		Gateway:     gw3,
+		NwInterface: nwInterface,
+		Metric:      metric,
+	})
+	assert.Contains(t, dumped, &RouteEntry{
+		Destination: dst4,
+		Gateway:     gw4,
+		NwInterface: nwInterface,
+		Metric:      metric,
+	})
+}
