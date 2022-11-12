@@ -98,43 +98,6 @@ func (rt *RouteTable) AddRoute(destination net.IPNet, gateway net.IP, nwInterfac
 	return nil
 }
 
-func (rt *RouteTable) MatchRoute(target net.IP) (optional.Option[RouteEntry], error) {
-	var matchedRoute *RouteEntry
-	visitNode := rt.routes
-
-	target, err := adjustIPLength(target)
-	if err != nil {
-		return optional.None[RouteEntry](), fmt.Errorf("invalid target IP address => %s: %w", target, err)
-	}
-
-iploop:
-	for _, b := range target {
-		for rshift := 0; rshift <= 7; rshift++ {
-			if visitNode.routeEntry != nil {
-				matchedRoute = visitNode.routeEntry
-			}
-
-			bit := toBit(b, rshift)
-			if bit == 0 {
-				if visitNode.zeroBitNode == nil {
-					break iploop
-				}
-				visitNode = visitNode.zeroBitNode
-			} else {
-				if visitNode.oneBitNode == nil {
-					break iploop
-				}
-				visitNode = visitNode.oneBitNode
-			}
-		}
-	}
-	if visitNode.routeEntry != nil {
-		matchedRoute = visitNode.routeEntry
-	}
-
-	return optional.FromNillable[RouteEntry](matchedRoute), nil
-}
-
 func (rt *RouteTable) RemoveRoute(destination net.IPNet) error {
 	rt.mu.Lock()
 	defer rt.mu.Unlock()
@@ -180,6 +143,71 @@ func (rt *RouteTable) RemoveRoute(destination net.IPNet) error {
 	}
 
 	return nil
+}
+
+func (rt *RouteTable) MatchRoute(target net.IP) (optional.Option[RouteEntry], error) {
+	target, err := adjustIPLength(target)
+	if err != nil {
+		return optional.None[RouteEntry](), fmt.Errorf("invalid target IP address on matching a route => %s: %w", target, err)
+	}
+
+	var matchedRoute *RouteEntry
+	visitNode := rt.routes
+	for _, b := range target {
+		for rshift := 0; rshift <= 7; rshift++ {
+			if visitNode.routeEntry != nil {
+				matchedRoute = visitNode.routeEntry
+			}
+
+			bit := toBit(b, rshift)
+			if bit == 0 {
+				if visitNode.zeroBitNode == nil {
+					return optional.FromNillable[RouteEntry](matchedRoute), nil
+				}
+				visitNode = visitNode.zeroBitNode
+			} else {
+				if visitNode.oneBitNode == nil {
+					return optional.FromNillable[RouteEntry](matchedRoute), nil
+				}
+				visitNode = visitNode.oneBitNode
+			}
+		}
+	}
+	if visitNode.routeEntry != nil {
+		matchedRoute = visitNode.routeEntry
+	}
+
+	return optional.FromNillable[RouteEntry](matchedRoute), nil
+}
+
+func (rt *RouteTable) FindRoute(target net.IP) (bool, error) {
+	target, err := adjustIPLength(target)
+	if err != nil {
+		return false, fmt.Errorf("invalid target IP address on finding a route => %s: %w", target, err)
+	}
+
+	visitNode := rt.routes
+	for _, b := range target {
+		for rshift := 0; rshift <= 7; rshift++ {
+			if visitNode.routeEntry != nil {
+				return true, nil
+			}
+
+			bit := toBit(b, rshift)
+			if bit == 0 {
+				if visitNode.zeroBitNode == nil {
+					return false, nil
+				}
+				visitNode = visitNode.zeroBitNode
+			} else {
+				if visitNode.oneBitNode == nil {
+					return false, nil
+				}
+				visitNode = visitNode.oneBitNode
+			}
+		}
+	}
+	return visitNode.routeEntry != nil, nil
 }
 
 func toBit(b byte, rshift int) byte {
