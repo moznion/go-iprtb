@@ -9,14 +9,17 @@ import (
 	"github.com/moznion/go-optional"
 )
 
+// ErrInvalidIPv6Length represents the error that indicates given IPv6 address has invalid length.
 var ErrInvalidIPv6Length = errors.New("given IPv6 address doesn't satisfy the IPv6 length")
 
+// RouteTable is a route table implementation.
 type RouteTable struct {
 	routes            *node
 	label2Destination map[string]*net.IPNet
 	mu                sync.Mutex
 }
 
+// RouteEntry is an entry of route table.
 type RouteEntry struct {
 	Destination net.IPNet
 	Gateway     net.IP
@@ -24,6 +27,7 @@ type RouteEntry struct {
 	Metric      int
 }
 
+// NewRouteTable makes a new RouteTable value.
 func NewRouteTable() *RouteTable {
 	return &RouteTable{
 		routes:            &node{},
