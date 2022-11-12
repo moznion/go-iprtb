@@ -1,4 +1,4 @@
-# go-iprtb
+# go-iprtb [![.github/workflows/check.yml](https://github.com/moznion/go-iprtb/actions/workflows/check.yml/badge.svg)](https://github.com/moznion/go-iprtb/actions/workflows/check.yml) [![codecov](https://codecov.io/gh/moznion/go-iprtb/branch/main/graph/badge.svg?token=S3UWM0Y3LF)](https://codecov.io/gh/moznion/go-iprtb) [![GoDoc](https://godoc.org/github.com/moznion/go-iprtb?status.svg)](https://godoc.org/github.com/moznion/go-iprtb)
 
 Pure go implementation of the IP routing table. This implementation uses a prefix tree as a backend data structure to find/match the routes.
 
