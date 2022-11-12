@@ -19,12 +19,12 @@ type RouteTable struct {
 	mu                sync.Mutex
 }
 
-// RouteEntry is an entry of route table.
-type RouteEntry struct {
-	Destination net.IPNet
-	Gateway     net.IP
-	NwInterface string
-	Metric      int
+// Route is an entry of route table.
+type Route struct {
+	Destination      net.IPNet
+	Gateway          net.IP
+	NetworkInterface string
+	Metric           int
 }
 
 // NewRouteTable makes a new RouteTable value.
@@ -38,24 +38,24 @@ func NewRouteTable() *RouteTable {
 type node struct {
 	zeroBitNode *node
 	oneBitNode  *node
-	routeEntry  *RouteEntry
+	route       *Route
 }
 
-func (rt *RouteTable) AddRoute(destination net.IPNet, gateway net.IP, nwInterface string, metric int) error {
+func (rt *RouteTable) AddRoute(route *Route) error {
 	rt.mu.Lock()
 	defer rt.mu.Unlock()
-	return rt.addRoute(destination, gateway, nwInterface, metric)
+	return rt.addRoute(route)
 }
 
-func (rt *RouteTable) AddRouteWithLabel(destination net.IPNet, gateway net.IP, nwInterface string, metric int, label string) error {
+func (rt *RouteTable) AddRouteWithLabel(label string, route *Route) error {
 	rt.mu.Lock()
 	defer rt.mu.Unlock()
 
-	err := rt.addRoute(destination, gateway, nwInterface, metric)
+	err := rt.addRoute(route)
 	if err != nil {
 		return err
 	}
-	rt.label2Destination[label] = &destination
+	rt.label2Destination[label] = &route.Destination
 	return nil
 }
 
@@ -67,21 +67,27 @@ func (rt *RouteTable) UpdateByLabel(label string, gateway net.IP, nwInterface st
 	if destination == nil {
 		return nil
 	}
-	return rt.addRoute(*destination, gateway, nwInterface, metric)
+	return rt.addRoute(&Route{
+		Destination:      *destination,
+		Gateway:          gateway,
+		NetworkInterface: nwInterface,
+		Metric:           metric,
+	})
 }
 
-func (rt *RouteTable) addRoute(destination net.IPNet, gateway net.IP, nwInterface string, metric int) error {
-	terminalRouteEntry := &RouteEntry{
-		Destination: destination,
-		Gateway:     gateway,
-		NwInterface: nwInterface,
-		Metric:      metric,
+func (rt *RouteTable) addRoute(route *Route) error {
+	destination := route.Destination
+	terminalRoute := &Route{
+		Destination:      destination,
+		Gateway:          route.Gateway,
+		NetworkInterface: route.NetworkInterface,
+		Metric:           route.Metric,
 	}
 
 	currentNode := rt.routes // root
 	maskLen, _ := destination.Mask.Size()
 	if maskLen <= 0 {
-		currentNode.routeEntry = terminalRouteEntry
+		currentNode.route = terminalRoute
 		return nil
 	}
 
@@ -91,8 +97,8 @@ func (rt *RouteTable) addRoute(destination net.IPNet, gateway net.IP, nwInterfac
 	}
 
 	for _, b := range dstIP {
-		for rshift := 0; rshift <= 7; rshift++ {
-			bit := toBit(b, rshift)
+		for rightShift := 0; rightShift <= 7; rightShift++ {
+			bit := toBit(b, rightShift)
 
 			maskLen--
 			if maskLen <= 0 { // terminated
@@ -100,12 +106,12 @@ func (rt *RouteTable) addRoute(destination net.IPNet, gateway net.IP, nwInterfac
 					if currentNode.zeroBitNode == nil {
 						currentNode.zeroBitNode = &node{}
 					}
-					currentNode.zeroBitNode.routeEntry = terminalRouteEntry
+					currentNode.zeroBitNode.route = terminalRoute
 				} else {
 					if currentNode.oneBitNode == nil {
 						currentNode.oneBitNode = &node{}
 					}
-					currentNode.oneBitNode.routeEntry = terminalRouteEntry
+					currentNode.oneBitNode.route = terminalRoute
 				}
 
 				return nil
@@ -157,7 +163,7 @@ func (rt *RouteTable) removeRoute(destination net.IPNet) error {
 	currentNode := rt.routes // root
 	maskLen, _ := destination.Mask.Size()
 	if maskLen <= 0 {
-		currentNode.routeEntry = nil
+		currentNode.route = nil
 		return nil
 	}
 
@@ -167,15 +173,15 @@ func (rt *RouteTable) removeRoute(destination net.IPNet) error {
 	}
 
 	for _, b := range dstIP {
-		for rshift := 0; rshift <= 7; rshift++ {
-			bit := toBit(b, rshift)
+		for rightShift := 0; rightShift <= 7; rightShift++ {
+			bit := toBit(b, rightShift)
 
 			maskLen--
 			if maskLen <= 0 { // terminated
 				if bit == 0 && currentNode.zeroBitNode != nil {
-					currentNode.zeroBitNode.routeEntry = nil
+					currentNode.zeroBitNode.route = nil
 				} else if currentNode.oneBitNode != nil {
-					currentNode.oneBitNode.routeEntry = nil
+					currentNode.oneBitNode.route = nil
 				}
 				return nil
 			}
@@ -197,39 +203,39 @@ func (rt *RouteTable) removeRoute(destination net.IPNet) error {
 	return nil
 }
 
-func (rt *RouteTable) MatchRoute(target net.IP) (optional.Option[RouteEntry], error) {
+func (rt *RouteTable) MatchRoute(target net.IP) (optional.Option[Route], error) {
 	target, err := adjustIPLength(target)
 	if err != nil {
-		return optional.None[RouteEntry](), fmt.Errorf("invalid target IP address on matching a route => %s: %w", target, err)
+		return optional.None[Route](), fmt.Errorf("invalid target IP address on matching a route => %s: %w", target, err)
 	}
 
-	var matchedRoute *RouteEntry
+	var matchedRoute *Route
 	visitNode := rt.routes
 	for _, b := range target {
-		for rshift := 0; rshift <= 7; rshift++ {
-			if visitNode.routeEntry != nil {
-				matchedRoute = visitNode.routeEntry
+		for rightShift := 0; rightShift <= 7; rightShift++ {
+			if visitNode.route != nil {
+				matchedRoute = visitNode.route
 			}
 
-			bit := toBit(b, rshift)
+			bit := toBit(b, rightShift)
 			if bit == 0 {
 				if visitNode.zeroBitNode == nil {
-					return optional.FromNillable[RouteEntry](matchedRoute), nil
+					return optional.FromNillable[Route](matchedRoute), nil
 				}
 				visitNode = visitNode.zeroBitNode
 			} else {
 				if visitNode.oneBitNode == nil {
-					return optional.FromNillable[RouteEntry](matchedRoute), nil
+					return optional.FromNillable[Route](matchedRoute), nil
 				}
 				visitNode = visitNode.oneBitNode
 			}
 		}
 	}
-	if visitNode.routeEntry != nil {
-		matchedRoute = visitNode.routeEntry
+	if visitNode.route != nil {
+		matchedRoute = visitNode.route
 	}
 
-	return optional.FromNillable[RouteEntry](matchedRoute), nil
+	return optional.FromNillable[Route](matchedRoute), nil
 }
 
 func (rt *RouteTable) FindRoute(target net.IP) (bool, error) {
@@ -240,12 +246,12 @@ func (rt *RouteTable) FindRoute(target net.IP) (bool, error) {
 
 	visitNode := rt.routes
 	for _, b := range target {
-		for rshift := 0; rshift <= 7; rshift++ {
-			if visitNode.routeEntry != nil {
+		for rightShift := 0; rightShift <= 7; rightShift++ {
+			if visitNode.route != nil {
 				return true, nil
 			}
 
-			bit := toBit(b, rshift)
+			bit := toBit(b, rightShift)
 			if bit == 0 {
 				if visitNode.zeroBitNode == nil {
 					return false, nil
@@ -259,33 +265,33 @@ func (rt *RouteTable) FindRoute(target net.IP) (bool, error) {
 			}
 		}
 	}
-	return visitNode.routeEntry != nil, nil
+	return visitNode.route != nil, nil
 }
 
-func (rt *RouteTable) DumpRouteTable() []*RouteEntry {
+func (rt *RouteTable) DumpRouteTable() []*Route {
 	return rt.scanNode(rt.routes)
 }
 
-func (rt *RouteTable) scanNode(visitNode *node) []*RouteEntry {
-	routeEntries := make([]*RouteEntry, 0)
+func (rt *RouteTable) scanNode(visitNode *node) []*Route {
+	routes := make([]*Route, 0)
 
 	if visitNode.zeroBitNode != nil {
-		routeEntries = append(routeEntries, rt.scanNode(visitNode.zeroBitNode)...)
+		routes = append(routes, rt.scanNode(visitNode.zeroBitNode)...)
 	}
 	if visitNode.oneBitNode != nil {
-		routeEntries = append(routeEntries, rt.scanNode(visitNode.oneBitNode)...)
+		routes = append(routes, rt.scanNode(visitNode.oneBitNode)...)
 	}
 
-	if visitNode.routeEntry != nil {
-		routeEntries = append(routeEntries, visitNode.routeEntry)
+	if visitNode.route != nil {
+		routes = append(routes, visitNode.route)
 	}
 
-	return routeEntries
+	return routes
 }
 
-func toBit(b byte, rshift int) byte {
-	mask := byte(0b10000000 >> rshift)
-	return byte((b & mask) >> (7 - rshift))
+func toBit(b byte, rightShift int) byte {
+	mask := byte(0b10000000 >> rightShift)
+	return byte((b & mask) >> (7 - rightShift))
 }
 
 func adjustIPLength(givenIP net.IP) (net.IP, error) {

@@ -15,42 +15,66 @@ func TestRouteTable_MatchRoute(t *testing.T) {
 		assert.True(t, maybeMatchedRoute.IsNone())
 	}
 
-	err := rtb.AddRoute(net.IPNet{
-		IP:   net.IPv4(192, 0, 2, 0),
-		Mask: net.IPv4Mask(255, 255, 255, 0),
-	}, net.IPv4(192, 0, 2, 1), "ifb0", 1)
+	route1 := &Route{
+		Destination: net.IPNet{
+			IP:   net.IPv4(192, 0, 2, 0),
+			Mask: net.IPv4Mask(255, 255, 255, 0),
+		},
+		Gateway:          net.IPv4(192, 0, 2, 1),
+		NetworkInterface: "ifb0",
+		Metric:           1,
+	}
+	err := rtb.AddRoute(route1)
 	assert.NoError(t, err)
 
-	err = rtb.AddRoute(net.IPNet{
-		IP:   net.IPv4(192, 0, 2, 255),
-		Mask: net.IPv4Mask(255, 255, 255, 255),
-	}, net.IPv4(192, 0, 2, 255), "ifb0", 1)
+	route2 := &Route{
+		Destination: net.IPNet{
+			IP:   net.IPv4(192, 0, 2, 255),
+			Mask: net.IPv4Mask(255, 255, 255, 255),
+		},
+		Gateway:          net.IPv4(192, 0, 2, 255),
+		NetworkInterface: "ifb0",
+		Metric:           1,
+	}
+	err = rtb.AddRoute(route2)
 	assert.NoError(t, err)
 
-	err = rtb.AddRoute(net.IPNet{
-		IP:   net.IP{0x20, 0x01, 0x0d, 0xb8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
-		Mask: net.IPMask{0xff, 0xff, 0xff, 0xff, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
-	}, net.IP{0x20, 0x01, 0x0d, 0xb8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01}, "ifb0", 1)
+	route3 := &Route{
+		Destination: net.IPNet{
+			IP:   net.IP{0x20, 0x01, 0x0d, 0xb8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
+			Mask: net.IPMask{0xff, 0xff, 0xff, 0xff, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
+		},
+		Gateway:          net.IP{0x20, 0x01, 0x0d, 0xb8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01},
+		NetworkInterface: "ifb0",
+		Metric:           1,
+	}
+	err = rtb.AddRoute(route3)
 	assert.NoError(t, err)
 
-	err = rtb.AddRoute(net.IPNet{
-		IP:   net.IP{0x20, 0x01, 0x0d, 0xb8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff},
-		Mask: net.IPMask{0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff},
-	}, net.IP{0x20, 0x01, 0x0d, 0xb8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff}, "ifb0", 1)
+	route4 := &Route{
+		Destination: net.IPNet{
+			IP:   net.IP{0x20, 0x01, 0x0d, 0xb8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff},
+			Mask: net.IPMask{0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff},
+		},
+		Gateway:          net.IP{0x20, 0x01, 0x0d, 0xb8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff},
+		NetworkInterface: "ifb0",
+		Metric:           1,
+	}
+	err = rtb.AddRoute(route4)
 	assert.NoError(t, err)
 
 	{
 		maybeMatchedRoute, err := rtb.MatchRoute(net.IPv4(192, 0, 2, 100))
 		assert.NoError(t, err)
 		assert.True(t, maybeMatchedRoute.IsSome())
-		assert.Equal(t, net.IPv4(192, 0, 2, 1), maybeMatchedRoute.Unwrap().Gateway)
+		assert.Equal(t, route1.Gateway, maybeMatchedRoute.Unwrap().Gateway)
 	}
 
 	{
 		maybeMatchedRoute, err := rtb.MatchRoute(net.IPv4(192, 0, 2, 254))
 		assert.NoError(t, err)
 		assert.True(t, maybeMatchedRoute.IsSome())
-		assert.Equal(t, net.IPv4(192, 0, 2, 1), maybeMatchedRoute.Unwrap().Gateway)
+		assert.Equal(t, route1.Gateway, maybeMatchedRoute.Unwrap().Gateway)
 	}
 
 	{
@@ -58,7 +82,7 @@ func TestRouteTable_MatchRoute(t *testing.T) {
 		maybeMatchedRoute, err := rtb.MatchRoute(net.IPv4(192, 0, 2, 255))
 		assert.NoError(t, err)
 		assert.True(t, maybeMatchedRoute.IsSome())
-		assert.Equal(t, net.IPv4(192, 0, 2, 255), maybeMatchedRoute.Unwrap().Gateway)
+		assert.Equal(t, route2.Gateway, maybeMatchedRoute.Unwrap().Gateway)
 	}
 
 	{
@@ -71,59 +95,69 @@ func TestRouteTable_MatchRoute(t *testing.T) {
 		maybeMatchedRoute, err := rtb.MatchRoute(net.IP{0x20, 0x01, 0x0d, 0xb8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02})
 		assert.NoError(t, err)
 		assert.True(t, maybeMatchedRoute.IsSome())
-		assert.Equal(t, net.IP{0x20, 0x01, 0x0d, 0xb8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01}, maybeMatchedRoute.Unwrap().Gateway)
+		assert.Equal(t, route3.Gateway, maybeMatchedRoute.Unwrap().Gateway)
 	}
 
 	{
 		maybeMatchedRoute, err := rtb.MatchRoute(net.IP{0x20, 0x01, 0x0d, 0xb8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xfe})
 		assert.NoError(t, err)
 		assert.True(t, maybeMatchedRoute.IsSome())
-		assert.Equal(t, net.IP{0x20, 0x01, 0x0d, 0xb8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01}, maybeMatchedRoute.Unwrap().Gateway)
+		assert.Equal(t, route3.Gateway, maybeMatchedRoute.Unwrap().Gateway)
 	}
 
 	{
 		maybeMatchedRoute, err := rtb.MatchRoute(net.IP{0x20, 0x01, 0x0d, 0xb8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff})
 		assert.NoError(t, err)
 		assert.True(t, maybeMatchedRoute.IsSome())
-		assert.Equal(t, net.IP{0x20, 0x01, 0x0d, 0xb8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff}, maybeMatchedRoute.Unwrap().Gateway)
+		assert.Equal(t, route4.Gateway, maybeMatchedRoute.Unwrap().Gateway)
 	}
 }
 
 func TestRouteTable_RemoveRoute(t *testing.T) {
 	rtb := NewRouteTable()
 
-	dst1 := net.IPNet{
-		IP:   net.IPv4(192, 0, 2, 0),
-		Mask: net.IPv4Mask(255, 255, 255, 0),
+	route1 := &Route{
+		Destination: net.IPNet{
+			IP:   net.IPv4(192, 0, 2, 0),
+			Mask: net.IPv4Mask(255, 255, 255, 0),
+		},
+		Gateway:          net.IPv4(192, 0, 2, 1),
+		NetworkInterface: "ifb0",
+		Metric:           1,
 	}
-	dst2 := net.IPNet{
-		IP:   net.IPv4(192, 0, 3, 0),
-		Mask: net.IPv4Mask(255, 255, 255, 0),
-	}
-
-	err := rtb.AddRoute(dst1, net.IPv4(192, 0, 2, 1), "ifb0", 1)
+	err := rtb.AddRoute(route1)
 	assert.NoError(t, err)
 
-	err = rtb.AddRoute(dst2, net.IPv4(192, 0, 3, 1), "ifb0", 1)
+	route2 := &Route{
+		Destination: net.IPNet{
+			IP:   net.IPv4(192, 0, 3, 0),
+			Mask: net.IPv4Mask(255, 255, 255, 0),
+		},
+		Gateway:          net.IPv4(192, 0, 3, 1),
+		NetworkInterface: "ifb0",
+		Metric:           1,
+	}
+	err = rtb.AddRoute(route2)
 	assert.NoError(t, err)
 
 	{
 		maybeMatchedRoute, err := rtb.MatchRoute(net.IPv4(192, 0, 2, 100))
 		assert.NoError(t, err)
 		assert.True(t, maybeMatchedRoute.IsSome())
-		assert.Equal(t, net.IPv4(192, 0, 2, 1), maybeMatchedRoute.Unwrap().Gateway)
+		assert.Equal(t, route1.Gateway, maybeMatchedRoute.Unwrap().Gateway)
 	}
 	{
 		maybeMatchedRoute, err := rtb.MatchRoute(net.IPv4(192, 0, 3, 100))
 		assert.NoError(t, err)
 		assert.True(t, maybeMatchedRoute.IsSome())
-		assert.Equal(t, net.IPv4(192, 0, 3, 1), maybeMatchedRoute.Unwrap().Gateway)
+		assert.Equal(t, route2.Gateway, maybeMatchedRoute.Unwrap().Gateway)
 	}
 
-	err = rtb.RemoveRoute(dst1)
+	err = rtb.RemoveRoute(route1.Destination)
 	assert.NoError(t, err)
-	err = rtb.RemoveRoute(dst2)
+	err = rtb.RemoveRoute(route2.Destination)
 	assert.NoError(t, err)
+
 	notExistingRoute := net.IPNet{
 		IP:   net.IPv4(192, 0, 3, 255),
 		Mask: net.IPv4Mask(255, 255, 255, 255),
@@ -146,47 +180,65 @@ func TestRouteTable_RemoveRoute(t *testing.T) {
 func TestRouteTable_MatchRoute_DefaultRoute(t *testing.T) {
 	rtb := NewRouteTable()
 
-	err := rtb.AddRoute(net.IPNet{
-		IP:   net.IPv4(192, 0, 2, 0),
-		Mask: net.IPv4Mask(255, 255, 255, 0),
-	}, net.IPv4(192, 0, 2, 1), "ifb0", 1)
+	route1 := &Route{
+		Destination: net.IPNet{
+			IP:   net.IPv4(192, 0, 2, 0),
+			Mask: net.IPv4Mask(255, 255, 255, 0),
+		},
+		Gateway:          net.IPv4(192, 0, 2, 1),
+		NetworkInterface: "ifb0",
+		Metric:           1,
+	}
+	err := rtb.AddRoute(route1)
 	assert.NoError(t, err)
 
-	err = rtb.AddRoute(net.IPNet{
-		IP:   net.IPv4(0, 0, 0, 0),
-		Mask: net.IPv4Mask(0, 0, 0, 0),
-	}, net.IPv4(0, 0, 0, 0), "ifb0", 1)
+	route2 := &Route{
+		Destination: net.IPNet{
+			IP:   net.IPv4(0, 0, 0, 0),
+			Mask: net.IPv4Mask(0, 0, 0, 0),
+		},
+		Gateway:          net.IPv4(0, 0, 0, 0),
+		NetworkInterface: "ifb0",
+		Metric:           1,
+	}
+	err = rtb.AddRoute(route2)
 	assert.NoError(t, err)
 
 	{
 		maybeMatchedRoute, err := rtb.MatchRoute(net.IPv4(192, 0, 2, 100))
 		assert.NoError(t, err)
 		assert.True(t, maybeMatchedRoute.IsSome())
-		assert.Equal(t, net.IPv4(192, 0, 2, 1), maybeMatchedRoute.Unwrap().Gateway)
+		assert.Equal(t, route1.Gateway, maybeMatchedRoute.Unwrap().Gateway)
 	}
 
 	{
 		maybeMatchedRoute, err := rtb.MatchRoute(net.IPv4(192, 0, 3, 0))
 		assert.NoError(t, err)
 		assert.True(t, maybeMatchedRoute.IsSome())
-		assert.Equal(t, net.IPv4(0, 0, 0, 0), maybeMatchedRoute.Unwrap().Gateway)
+		assert.Equal(t, route2.Gateway, maybeMatchedRoute.Unwrap().Gateway)
 	}
 }
 
 func TestRouteTable_RemoveRoute_DefaultRoute(t *testing.T) {
 	rtb := NewRouteTable()
 
-	err := rtb.AddRoute(net.IPNet{
-		IP:   net.IPv4(0, 0, 0, 0),
-		Mask: net.IPv4Mask(0, 0, 0, 0),
-	}, net.IPv4(0, 0, 0, 0), "ifb0", 1)
+	var route = &Route{
+		Destination: net.IPNet{
+			IP:   net.IPv4(0, 0, 0, 0),
+			Mask: net.IPv4Mask(0, 0, 0, 0),
+		},
+		Gateway:          net.IPv4(0, 0, 0, 0),
+		NetworkInterface: "ifb0",
+		Metric:           1,
+	}
+	err := rtb.AddRoute(route)
 	assert.NoError(t, err)
 
 	{
 		maybeMatchedRoute, err := rtb.MatchRoute(net.IPv4(192, 0, 3, 0))
 		assert.NoError(t, err)
 		assert.True(t, maybeMatchedRoute.IsSome())
-		assert.Equal(t, net.IPv4(0, 0, 0, 0), maybeMatchedRoute.Unwrap().Gateway)
+		assert.Equal(t, route.Gateway, maybeMatchedRoute.Unwrap().Gateway)
 	}
 
 	err = rtb.RemoveRoute(net.IPNet{
@@ -205,10 +257,16 @@ func TestRouteTable_RemoveRoute_DefaultRoute(t *testing.T) {
 func TestRouteTable_AddRoute_WithInvalidIPv6(t *testing.T) {
 	rtb := NewRouteTable()
 
-	err := rtb.AddRoute(net.IPNet{
-		IP:   net.IP{0xff, 0xff, 0xff, 0xff, 0xff},
-		Mask: net.IPMask{0xff, 0xff, 0xff, 0xff, 0xff},
-	}, net.IP{0xff, 0xff, 0xff, 0xff, 0xff}, "ifb0", 1)
+	route := &Route{
+		Destination: net.IPNet{
+			IP:   net.IP{0xff, 0xff, 0xff, 0xff, 0xff},
+			Mask: net.IPMask{0xff, 0xff, 0xff, 0xff, 0xff},
+		},
+		Gateway:          net.IP{0xff, 0xff, 0xff, 0xff, 0xff},
+		NetworkInterface: "ifb0",
+		Metric:           1,
+	}
+	err := rtb.AddRoute(route)
 	assert.ErrorIs(t, err, ErrInvalidIPv6Length)
 }
 
@@ -232,30 +290,41 @@ func TestRouteTable_RemoveRoute_WithInvalidIPv6(t *testing.T) {
 func TestRouteTable_AddRoute_ForUpdate(t *testing.T) {
 	rtb := NewRouteTable()
 
-	err := rtb.AddRoute(net.IPNet{
+	dst := net.IPNet{
 		IP:   net.IPv4(192, 0, 2, 0),
 		Mask: net.IPv4Mask(255, 255, 255, 0),
-	}, net.IPv4(192, 0, 2, 1), "ifb0", 1)
-	assert.NoError(t, err)
-
-	{
-		maybeMatchedRoute, err := rtb.MatchRoute(net.IPv4(192, 0, 2, 100))
-		assert.NoError(t, err)
-		assert.True(t, maybeMatchedRoute.IsSome())
-		assert.Equal(t, net.IPv4(192, 0, 2, 1), maybeMatchedRoute.Unwrap().Gateway)
 	}
 
-	err = rtb.AddRoute(net.IPNet{
-		IP:   net.IPv4(192, 0, 2, 0),
-		Mask: net.IPv4Mask(255, 255, 255, 0),
-	}, net.IPv4(192, 0, 2, 2), "ifb0", 1)
+	route1 := &Route{
+		Destination:      dst,
+		Gateway:          net.IPv4(192, 0, 2, 1),
+		NetworkInterface: "ifb0",
+		Metric:           1,
+	}
+	err := rtb.AddRoute(route1)
 	assert.NoError(t, err)
 
 	{
 		maybeMatchedRoute, err := rtb.MatchRoute(net.IPv4(192, 0, 2, 100))
 		assert.NoError(t, err)
 		assert.True(t, maybeMatchedRoute.IsSome())
-		assert.Equal(t, net.IPv4(192, 0, 2, 2), maybeMatchedRoute.Unwrap().Gateway)
+		assert.Equal(t, route1.Gateway, maybeMatchedRoute.Unwrap().Gateway)
+	}
+
+	route2 := &Route{
+		Destination:      dst,
+		Gateway:          net.IPv4(192, 0, 2, 2),
+		NetworkInterface: "ifb0",
+		Metric:           1,
+	}
+	err = rtb.AddRoute(route2)
+	assert.NoError(t, err)
+
+	{
+		maybeMatchedRoute, err := rtb.MatchRoute(net.IPv4(192, 0, 2, 100))
+		assert.NoError(t, err)
+		assert.True(t, maybeMatchedRoute.IsSome())
+		assert.Equal(t, route2.Gateway, maybeMatchedRoute.Unwrap().Gateway)
 	}
 }
 
@@ -272,28 +341,52 @@ func TestRouteTable_FindRoute(t *testing.T) {
 		assert.False(t, found)
 	}
 
-	err := rtb.AddRoute(net.IPNet{
-		IP:   net.IPv4(192, 0, 2, 0),
-		Mask: net.IPv4Mask(255, 255, 255, 0),
-	}, net.IPv4(192, 0, 2, 1), "ifb0", 1)
+	route1 := &Route{
+		Destination: net.IPNet{
+			IP:   net.IPv4(192, 0, 2, 0),
+			Mask: net.IPv4Mask(255, 255, 255, 0),
+		},
+		Gateway:          net.IPv4(192, 0, 2, 1),
+		NetworkInterface: "ifb0",
+		Metric:           1,
+	}
+	err := rtb.AddRoute(route1)
 	assert.NoError(t, err)
 
-	err = rtb.AddRoute(net.IPNet{
-		IP:   net.IPv4(192, 0, 2, 255),
-		Mask: net.IPv4Mask(255, 255, 255, 255),
-	}, net.IPv4(192, 0, 2, 255), "ifb0", 1)
+	route2 := &Route{
+		Destination: net.IPNet{
+			IP:   net.IPv4(192, 0, 2, 255),
+			Mask: net.IPv4Mask(255, 255, 255, 255),
+		},
+		Gateway:          net.IPv4(192, 0, 2, 255),
+		NetworkInterface: "ifb0",
+		Metric:           1,
+	}
+	err = rtb.AddRoute(route2)
 	assert.NoError(t, err)
 
-	err = rtb.AddRoute(net.IPNet{
-		IP:   net.IP{0x20, 0x01, 0x0d, 0xb8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
-		Mask: net.IPMask{0xff, 0xff, 0xff, 0xff, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
-	}, net.IP{0x20, 0x01, 0x0d, 0xb8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01}, "ifb0", 1)
+	route3 := &Route{
+		Destination: net.IPNet{
+			IP:   net.IP{0x20, 0x01, 0x0d, 0xb8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
+			Mask: net.IPMask{0xff, 0xff, 0xff, 0xff, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
+		},
+		Gateway:          net.IP{0x20, 0x01, 0x0d, 0xb8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01},
+		NetworkInterface: "ifb0",
+		Metric:           1,
+	}
+	err = rtb.AddRoute(route3)
 	assert.NoError(t, err)
 
-	err = rtb.AddRoute(net.IPNet{
-		IP:   net.IP{0x20, 0x01, 0x0d, 0xb8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff},
-		Mask: net.IPMask{0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff},
-	}, net.IP{0x20, 0x01, 0x0d, 0xb8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff}, "ifb0", 1)
+	route4 := &Route{
+		Destination: net.IPNet{
+			IP:   net.IP{0x20, 0x01, 0x0d, 0xb8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff},
+			Mask: net.IPMask{0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff},
+		},
+		Gateway:          net.IP{0x20, 0x01, 0x0d, 0xb8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff},
+		NetworkInterface: "ifb0",
+		Metric:           1,
+	}
+	err = rtb.AddRoute(route4)
 	assert.NoError(t, err)
 
 	{
@@ -343,10 +436,16 @@ func TestRouteTable_FindRoute(t *testing.T) {
 func TestRouteTable_FindRoute_DefaultRoute(t *testing.T) {
 	rtb := NewRouteTable()
 
-	err := rtb.AddRoute(net.IPNet{
-		IP:   net.IPv4(0, 0, 0, 0),
-		Mask: net.IPv4Mask(0, 0, 0, 0),
-	}, net.IPv4(0, 0, 0, 0), "ifb0", 1)
+	route := &Route{
+		Destination: net.IPNet{
+			IP:   net.IPv4(0, 0, 0, 0),
+			Mask: net.IPv4Mask(0, 0, 0, 0),
+		},
+		Gateway:          net.IPv4(0, 0, 0, 0),
+		NetworkInterface: "ifb0",
+		Metric:           1,
+	}
+	err := rtb.AddRoute(route)
 	assert.NoError(t, err)
 
 	{
@@ -365,10 +464,16 @@ func TestRouteTable_FindRoute_DefaultRoute(t *testing.T) {
 func TestRouteTable_FindRoute_ExactMatch(t *testing.T) {
 	rtb := NewRouteTable()
 
-	err := rtb.AddRoute(net.IPNet{
-		IP:   net.IPv4(192, 0, 2, 123),
-		Mask: net.IPv4Mask(255, 255, 255, 255),
-	}, net.IPv4(192, 0, 2, 123), "ifb0", 1)
+	route := &Route{
+		Destination: net.IPNet{
+			IP:   net.IPv4(192, 0, 2, 123),
+			Mask: net.IPv4Mask(255, 255, 255, 255),
+		},
+		Gateway:          net.IPv4(192, 0, 2, 123),
+		NetworkInterface: "ifb0",
+		Metric:           1,
+	}
+	err := rtb.AddRoute(route)
 	assert.NoError(t, err)
 
 	{
@@ -389,10 +494,17 @@ func TestRouteTable_WithLabel(t *testing.T) {
 	label := "label-1"
 
 	rtb := NewRouteTable()
-	err := rtb.AddRouteWithLabel(net.IPNet{
-		IP:   net.IPv4(192, 0, 2, 0),
-		Mask: net.IPv4Mask(255, 255, 255, 0),
-	}, net.IPv4(192, 0, 2, 1), "ifb0", 1, label)
+
+	route := &Route{
+		Destination: net.IPNet{
+			IP:   net.IPv4(192, 0, 2, 0),
+			Mask: net.IPv4Mask(255, 255, 255, 0),
+		},
+		Gateway:          net.IPv4(192, 0, 2, 1),
+		NetworkInterface: "ifb0",
+		Metric:           1,
+	}
+	err := rtb.AddRouteWithLabel(label, route)
 	assert.NoError(t, err)
 	{
 		maybeMatchedRoute, err := rtb.MatchRoute(net.IPv4(192, 0, 2, 100))
@@ -425,43 +537,59 @@ func TestRouteTable_WithNotExistedLabel(t *testing.T) {
 	label := "label-1"
 
 	rtb := NewRouteTable()
-	err := rtb.AddRouteWithLabel(net.IPNet{
-		IP:   net.IPv4(192, 0, 2, 0),
-		Mask: net.IPv4Mask(255, 255, 255, 0),
-	}, net.IPv4(192, 0, 2, 1), "ifb0", 1, label)
+
+	route := &Route{
+		Destination: net.IPNet{
+			IP:   net.IPv4(192, 0, 2, 0),
+			Mask: net.IPv4Mask(255, 255, 255, 0),
+		},
+		Gateway:          net.IPv4(192, 0, 2, 1),
+		NetworkInterface: "ifb0",
+		Metric:           1,
+	}
+	err := rtb.AddRouteWithLabel(label, route)
 	assert.NoError(t, err)
 	{
 		maybeMatchedRoute, err := rtb.MatchRoute(net.IPv4(192, 0, 2, 100))
 		assert.NoError(t, err)
 		assert.True(t, maybeMatchedRoute.IsSome())
-		assert.Equal(t, net.IPv4(192, 0, 2, 1), maybeMatchedRoute.Unwrap().Gateway)
+		assert.Equal(t, route.Gateway, maybeMatchedRoute.Unwrap().Gateway)
 	}
 
 	err = rtb.UpdateByLabel("__invalid_label__", net.IPv4(192, 0, 2, 2), "ifb0", 1)
 	assert.NoError(t, err)
 	{
+		// should not be affected
 		maybeMatchedRoute, err := rtb.MatchRoute(net.IPv4(192, 0, 2, 100))
 		assert.NoError(t, err)
 		assert.True(t, maybeMatchedRoute.IsSome())
-		assert.Equal(t, net.IPv4(192, 0, 2, 1), maybeMatchedRoute.Unwrap().Gateway)
+		assert.Equal(t, route.Gateway, maybeMatchedRoute.Unwrap().Gateway)
 	}
 
 	err = rtb.RemoveRouteByLabel("__invalid_label__")
 	assert.NoError(t, err)
 	{
+		// should not be affected
 		maybeMatchedRoute, err := rtb.MatchRoute(net.IPv4(192, 0, 2, 100))
 		assert.NoError(t, err)
 		assert.True(t, maybeMatchedRoute.IsSome())
-		assert.Equal(t, net.IPv4(192, 0, 2, 1), maybeMatchedRoute.Unwrap().Gateway)
+		assert.Equal(t, route.Gateway, maybeMatchedRoute.Unwrap().Gateway)
 	}
 }
 
 func TestRouteTable_AddRouteWithLabel_WithInvalidIpv6(t *testing.T) {
 	rtb := NewRouteTable()
-	err := rtb.AddRouteWithLabel(net.IPNet{
-		IP:   net.IP{0xff, 0xff, 0xff, 0xff, 0xff},
-		Mask: net.IPMask{0xff, 0xff, 0xff, 0xff, 0xff},
-	}, net.IP{0xff, 0xff, 0xff, 0xff, 0xff}, "ifb0", 1, "__label__")
+
+	route := &Route{
+		Destination: net.IPNet{
+			IP:   net.IP{0xff, 0xff, 0xff, 0xff, 0xff},
+			Mask: net.IPMask{0xff, 0xff, 0xff, 0xff, 0xff},
+		},
+		Gateway:          net.IP{0xff, 0xff, 0xff, 0xff, 0xff},
+		NetworkInterface: "ifb0",
+		Metric:           1,
+	}
+	err := rtb.AddRouteWithLabel("__label__", route)
 	assert.ErrorIs(t, err, ErrInvalidIPv6Length)
 }
 
@@ -486,62 +614,58 @@ func TestRouteTable_DumpRouteTable(t *testing.T) {
 	nwInterface := "ifb0"
 	metric := 1
 
-	dst1 := net.IPNet{
-		IP:   net.IPv4(192, 0, 2, 0),
-		Mask: net.IPv4Mask(255, 255, 255, 0),
+	route1 := &Route{
+		Destination: net.IPNet{
+			IP:   net.IPv4(192, 0, 2, 0),
+			Mask: net.IPv4Mask(255, 255, 255, 0),
+		},
+		Gateway:          net.IPv4(192, 0, 2, 1),
+		NetworkInterface: nwInterface,
+		Metric:           metric,
 	}
-	gw1 := net.IPv4(192, 0, 2, 1)
-	err := rtb.AddRoute(dst1, gw1, nwInterface, metric)
+	err := rtb.AddRoute(route1)
 	assert.NoError(t, err)
 
-	dst2 := net.IPNet{
-		IP:   net.IPv4(192, 0, 2, 255),
-		Mask: net.IPv4Mask(255, 255, 255, 255),
+	route2 := &Route{
+		Destination: net.IPNet{
+			IP:   net.IPv4(192, 0, 2, 255),
+			Mask: net.IPv4Mask(255, 255, 255, 255),
+		},
+		Gateway:          net.IPv4(192, 0, 2, 255),
+		NetworkInterface: nwInterface,
+		Metric:           metric,
 	}
-	gw2 := net.IPv4(192, 0, 2, 255)
-	err = rtb.AddRoute(dst2, gw2, nwInterface, metric)
+	err = rtb.AddRoute(route2)
 	assert.NoError(t, err)
 
-	dst3 := net.IPNet{
-		IP:   net.IP{0x20, 0x01, 0x0d, 0xb8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
-		Mask: net.IPMask{0xff, 0xff, 0xff, 0xff, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
+	route3 := &Route{
+		Destination: net.IPNet{
+			IP:   net.IP{0x20, 0x01, 0x0d, 0xb8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
+			Mask: net.IPMask{0xff, 0xff, 0xff, 0xff, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
+		},
+		Gateway:          net.IP{0x20, 0x01, 0x0d, 0xb8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01},
+		NetworkInterface: nwInterface,
+		Metric:           metric,
 	}
-	gw3 := net.IP{0x20, 0x01, 0x0d, 0xb8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01}
-	err = rtb.AddRoute(dst3, gw3, nwInterface, metric)
+	err = rtb.AddRoute(route3)
 	assert.NoError(t, err)
 
-	dst4 := net.IPNet{
-		IP:   net.IP{0x20, 0x01, 0x0d, 0xb8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff},
-		Mask: net.IPMask{0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff},
+	route4 := &Route{
+		Destination: net.IPNet{
+			IP:   net.IP{0x20, 0x01, 0x0d, 0xb8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff},
+			Mask: net.IPMask{0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff},
+		},
+		Gateway:          net.IP{0x20, 0x01, 0x0d, 0xb8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff},
+		NetworkInterface: nwInterface,
+		Metric:           metric,
 	}
-	gw4 := net.IP{0x20, 0x01, 0x0d, 0xb8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff}
-	err = rtb.AddRoute(dst4, gw4, nwInterface, metric)
+	err = rtb.AddRoute(route4)
 	assert.NoError(t, err)
 
 	dumped = rtb.DumpRouteTable()
 	assert.Len(t, dumped, 4)
-	assert.Contains(t, dumped, &RouteEntry{
-		Destination: dst1,
-		Gateway:     gw1,
-		NwInterface: nwInterface,
-		Metric:      metric,
-	})
-	assert.Contains(t, dumped, &RouteEntry{
-		Destination: dst2,
-		Gateway:     gw2,
-		NwInterface: nwInterface,
-		Metric:      metric,
-	})
-	assert.Contains(t, dumped, &RouteEntry{
-		Destination: dst3,
-		Gateway:     gw3,
-		NwInterface: nwInterface,
-		Metric:      metric,
-	})
-	assert.Contains(t, dumped, &RouteEntry{
-		Destination: dst4,
-		Gateway:     gw4,
-		NwInterface: nwInterface,
-		Metric:      metric,
-	})
+	assert.Contains(t, dumped, route1)
+	assert.Contains(t, dumped, route2)
+	assert.Contains(t, dumped, route3)
+	assert.Contains(t, dumped, route4)
 }
