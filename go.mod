@@ -1,4 +1,4 @@
-module github.com/moznion/go-rtb
+module github.com/moznion/go-iprtb
 
 go 1.19
 
