@@ -9,6 +9,8 @@ import (
 	"github.com/moznion/go-optional"
 )
 
+var ErrInvalidIPv6Length = errors.New("given IPv6 address doesn't satisfy the IPv6 length")
+
 type RouteTable struct {
 	routes *node
 	mu     sync.Mutex
@@ -33,7 +35,7 @@ type node struct {
 	routeEntry  *RouteEntry
 }
 
-func (rt *RouteTable) AddRoute(destination net.IPNet, gateway net.IP, nwInterface string, metric int) {
+func (rt *RouteTable) AddRoute(destination net.IPNet, gateway net.IP, nwInterface string, metric int) error {
 	rt.mu.Lock()
 	defer rt.mu.Unlock()
 
@@ -48,10 +50,14 @@ func (rt *RouteTable) AddRoute(destination net.IPNet, gateway net.IP, nwInterfac
 	maskLen, _ := destination.Mask.Size()
 	if maskLen <= 0 {
 		currentNode.routeEntry = terminalRouteEntry
-		return
+		return nil
 	}
 
-	dstIP, _ := adjustIPLength(destination.IP)
+	dstIP, err := adjustIPLength(destination.IP)
+	if err != nil {
+		return fmt.Errorf("failed to add a route: %w", err)
+	}
+
 	for _, b := range dstIP {
 		for rshift := 0; rshift <= 7; rshift++ {
 			bit := toBit(b, rshift)
@@ -70,7 +76,7 @@ func (rt *RouteTable) AddRoute(destination net.IPNet, gateway net.IP, nwInterfac
 					currentNode.oneBitNode.routeEntry = terminalRouteEntry
 				}
 
-				return
+				return nil
 			}
 
 			var nextNode *node
@@ -88,6 +94,8 @@ func (rt *RouteTable) AddRoute(destination net.IPNet, gateway net.IP, nwInterfac
 			currentNode = nextNode
 		}
 	}
+
+	return nil
 }
 
 func (rt *RouteTable) MatchRoute(target net.IP) (optional.Option[RouteEntry], error) {
@@ -127,7 +135,7 @@ iploop:
 	return optional.FromNillable[RouteEntry](matchedRoute), nil
 }
 
-func (rt *RouteTable) RemoveRoute(destination net.IPNet) {
+func (rt *RouteTable) RemoveRoute(destination net.IPNet) error {
 	rt.mu.Lock()
 	defer rt.mu.Unlock()
 
@@ -135,10 +143,14 @@ func (rt *RouteTable) RemoveRoute(destination net.IPNet) {
 	maskLen, _ := destination.Mask.Size()
 	if maskLen <= 0 {
 		currentNode.routeEntry = nil
-		return
+		return nil
 	}
 
-	dstIP, _ := adjustIPLength(destination.IP)
+	dstIP, err := adjustIPLength(destination.IP)
+	if err != nil {
+		return fmt.Errorf("failed to remove a route: %w", err)
+	}
+
 	for _, b := range dstIP {
 		for rshift := 0; rshift <= 7; rshift++ {
 			bit := toBit(b, rshift)
@@ -150,7 +162,7 @@ func (rt *RouteTable) RemoveRoute(destination net.IPNet) {
 				} else if currentNode.oneBitNode != nil {
 					currentNode.oneBitNode.routeEntry = nil
 				}
-				return
+				return nil
 			}
 
 			var nextNode *node
@@ -160,12 +172,14 @@ func (rt *RouteTable) RemoveRoute(destination net.IPNet) {
 				nextNode = currentNode.oneBitNode
 			}
 			if nextNode == nil {
-				return
+				return nil
 			}
 
 			currentNode = nextNode
 		}
 	}
+
+	return nil
 }
 
 func toBit(b byte, rshift int) byte {
@@ -180,7 +194,7 @@ func adjustIPLength(givenIP net.IP) (net.IP, error) {
 
 	// ipv6
 	if len(givenIP) != net.IPv6len {
-		return nil, errors.New("given IPv6 address doesn't satisfy the IPv6 length")
+		return nil, ErrInvalidIPv6Length
 	}
 	return givenIP, nil
 }
