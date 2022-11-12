@@ -7,7 +7,7 @@ import (
 	"github.com/moznion/go-optional"
 )
 
-type routes []RouteEntry
+type routes map[string]RouteEntry
 
 type RouteTable struct {
 	routes routes
@@ -23,7 +23,7 @@ type RouteEntry struct {
 
 func NewRouteTable() *RouteTable {
 	return &RouteTable{
-		routes: make(routes, 0),
+		routes: make(routes),
 	}
 }
 
@@ -31,20 +31,20 @@ func (rt *RouteTable) AddRoute(destination net.IPNet, gateway net.IP, nwInterfac
 	rt.mu.Lock()
 	defer rt.mu.Unlock()
 
-	rt.routes = append(rt.routes, RouteEntry{
+	rt.routes[destination.String()] = RouteEntry{
 		Destination: destination,
 		Gateway:     gateway,
 		NwInterface: nwInterface,
 		Metric:      metric,
-	})
+	}
 }
 
-func (rt *RouteTable) MatchRoute(destination net.IP) optional.Option[RouteEntry] {
+func (rt *RouteTable) MatchRoute(target net.IP) optional.Option[RouteEntry] {
 	var matched RouteEntry
 	var everMatched bool
 
 	for _, r := range rt.routes { // FIXME no liner-search
-		if r.Destination.Contains(destination) {
+		if r.Destination.Contains(target) {
 			if !everMatched {
 				matched = r
 				everMatched = true
@@ -53,7 +53,7 @@ func (rt *RouteTable) MatchRoute(destination net.IP) optional.Option[RouteEntry]
 
 			matchedMaskLen, _ := matched.Destination.Mask.Size()
 			newRouteMaskLen, _ := r.Destination.Mask.Size()
-			if newRouteMaskLen > matchedMaskLen {
+			if newRouteMaskLen > matchedMaskLen { // for longest match
 				matched = r
 			}
 		}
@@ -63,4 +63,11 @@ func (rt *RouteTable) MatchRoute(destination net.IP) optional.Option[RouteEntry]
 		return optional.None[RouteEntry]()
 	}
 	return optional.Some[RouteEntry](matched)
+}
+
+func (rt *RouteTable) RemoveRoute(destination net.IPNet) {
+	rt.mu.Lock()
+	defer rt.mu.Unlock()
+
+	delete(rt.routes, destination.String())
 }
