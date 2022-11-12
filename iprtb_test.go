@@ -10,7 +10,8 @@ import (
 func TestRouteTable_MatchRoute(t *testing.T) {
 	rtb := NewRouteTable()
 	{
-		maybeMatchedRoute := rtb.MatchRoute(net.IPv4(192, 0, 2, 100))
+		maybeMatchedRoute, err := rtb.MatchRoute(net.IPv4(192, 0, 2, 100))
+		assert.NoError(t, err)
 		assert.False(t, maybeMatchedRoute.IsSome())
 	}
 
@@ -19,25 +20,35 @@ func TestRouteTable_MatchRoute(t *testing.T) {
 		Mask: net.IPv4Mask(255, 255, 255, 0),
 	}, net.IPv4(192, 0, 2, 1), "ifb0", 1)
 	rtb.AddRoute(net.IPNet{
-		IP:   net.IPv4(192, 0, 2, 200),
+		IP:   net.IPv4(192, 0, 2, 255),
 		Mask: net.IPv4Mask(255, 255, 255, 255),
-	}, net.IPv4(192, 0, 2, 200), "ifb0", 1)
+	}, net.IPv4(192, 0, 2, 255), "ifb0", 1)
 
 	{
-		maybeMatchedRoute := rtb.MatchRoute(net.IPv4(192, 0, 2, 100))
+		maybeMatchedRoute, err := rtb.MatchRoute(net.IPv4(192, 0, 2, 100))
+		assert.NoError(t, err)
+		assert.True(t, maybeMatchedRoute.IsSome())
+		assert.Equal(t, net.IPv4(192, 0, 2, 1), maybeMatchedRoute.Unwrap().Gateway)
+	}
+
+	{
+		maybeMatchedRoute, err := rtb.MatchRoute(net.IPv4(192, 0, 2, 254))
+		assert.NoError(t, err)
 		assert.True(t, maybeMatchedRoute.IsSome())
 		assert.Equal(t, net.IPv4(192, 0, 2, 1), maybeMatchedRoute.Unwrap().Gateway)
 	}
 
 	{
 		// longest match
-		maybeMatchedRoute := rtb.MatchRoute(net.IPv4(192, 0, 2, 200))
+		maybeMatchedRoute, err := rtb.MatchRoute(net.IPv4(192, 0, 2, 255))
+		assert.NoError(t, err)
 		assert.True(t, maybeMatchedRoute.IsSome())
-		assert.Equal(t, net.IPv4(192, 0, 2, 200), maybeMatchedRoute.Unwrap().Gateway)
+		assert.Equal(t, net.IPv4(192, 0, 2, 255), maybeMatchedRoute.Unwrap().Gateway)
 	}
 
 	{
-		maybeMatchedRoute := rtb.MatchRoute(net.IPv4(198, 51, 100, 100))
+		maybeMatchedRoute, err := rtb.MatchRoute(net.IPv4(198, 0, 3, 100))
+		assert.NoError(t, err)
 		assert.True(t, maybeMatchedRoute.IsNone())
 	}
 }
@@ -52,14 +63,16 @@ func TestRouteTable_RemoveRoute(t *testing.T) {
 
 	rtb.AddRoute(dst, net.IPv4(192, 0, 2, 1), "ifb0", 1)
 	{
-		maybeMatchedRoute := rtb.MatchRoute(net.IPv4(192, 0, 2, 100))
+		maybeMatchedRoute, err := rtb.MatchRoute(net.IPv4(192, 0, 2, 100))
+		assert.NoError(t, err)
 		assert.True(t, maybeMatchedRoute.IsSome())
 		assert.Equal(t, net.IPv4(192, 0, 2, 1), maybeMatchedRoute.Unwrap().Gateway)
 	}
 
 	rtb.RemoveRoute(dst)
 	{
-		maybeMatchedRoute := rtb.MatchRoute(net.IPv4(192, 0, 2, 100))
+		maybeMatchedRoute, err := rtb.MatchRoute(net.IPv4(192, 0, 2, 100))
+		assert.NoError(t, err)
 		assert.False(t, maybeMatchedRoute.IsSome())
 	}
 }
