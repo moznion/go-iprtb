@@ -19,41 +19,12 @@ type RouteTable struct {
 	mu                sync.Mutex
 }
 
-// Routes is a list of Route
-type Routes []*Route
-
-func (rs Routes) String() string {
-	str := ""
-	for _, r := range rs {
-		str += r.String() + "\n"
-	}
-	return str
-}
-
-// Route is an entry of routing table.
-type Route struct {
-	Destination      net.IPNet
-	Gateway          net.IP
-	NetworkInterface string
-	Metric           int
-}
-
-func (r Route) String() string {
-	return fmt.Sprintf("%s\t%s\t%s\t%d", r.Destination.String(), r.Gateway.String(), r.NetworkInterface, r.Metric)
-}
-
 // NewRouteTable makes a new RouteTable value.
 func NewRouteTable() *RouteTable {
 	return &RouteTable{
 		routes:            &node{},
 		label2Destination: map[string]*net.IPNet{},
 	}
-}
-
-type node struct {
-	zeroBitNode *node
-	oneBitNode  *node
-	route       *Route
 }
 
 // AddRoute adds a route to the routing table.
@@ -340,4 +311,10 @@ func adjustIPLength(givenIP net.IP) (net.IP, error) {
 		return nil, ErrInvalidIPv6Length
 	}
 	return givenIP, nil
+}
+
+type node struct {
+	zeroBitNode *node
+	oneBitNode  *node
+	route       *Route
 }
