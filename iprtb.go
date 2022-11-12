@@ -12,8 +12,9 @@ import (
 var ErrInvalidIPv6Length = errors.New("given IPv6 address doesn't satisfy the IPv6 length")
 
 type RouteTable struct {
-	routes *node
-	mu     sync.Mutex
+	routes            *node
+	label2Destination map[string]*net.IPNet
+	mu                sync.Mutex
 }
 
 type RouteEntry struct {
@@ -25,7 +26,8 @@ type RouteEntry struct {
 
 func NewRouteTable() *RouteTable {
 	return &RouteTable{
-		routes: &node{},
+		routes:            &node{},
+		label2Destination: map[string]*net.IPNet{},
 	}
 }
 
@@ -38,7 +40,33 @@ type node struct {
 func (rt *RouteTable) AddRoute(destination net.IPNet, gateway net.IP, nwInterface string, metric int) error {
 	rt.mu.Lock()
 	defer rt.mu.Unlock()
+	return rt.addRoute(destination, gateway, nwInterface, metric)
+}
 
+func (rt *RouteTable) AddRouteWithLabel(destination net.IPNet, gateway net.IP, nwInterface string, metric int, label string) error {
+	rt.mu.Lock()
+	defer rt.mu.Unlock()
+
+	err := rt.addRoute(destination, gateway, nwInterface, metric)
+	if err != nil {
+		return err
+	}
+	rt.label2Destination[label] = &destination
+	return nil
+}
+
+func (rt *RouteTable) UpdateByLabel(label string, gateway net.IP, nwInterface string, metric int) error {
+	rt.mu.Lock()
+	defer rt.mu.Unlock()
+
+	destination := rt.label2Destination[label]
+	if destination == nil {
+		return nil
+	}
+	return rt.addRoute(*destination, gateway, nwInterface, metric)
+}
+
+func (rt *RouteTable) addRoute(destination net.IPNet, gateway net.IP, nwInterface string, metric int) error {
 	terminalRouteEntry := &RouteEntry{
 		Destination: destination,
 		Gateway:     gateway,
@@ -101,7 +129,27 @@ func (rt *RouteTable) AddRoute(destination net.IPNet, gateway net.IP, nwInterfac
 func (rt *RouteTable) RemoveRoute(destination net.IPNet) error {
 	rt.mu.Lock()
 	defer rt.mu.Unlock()
+	return rt.removeRoute(destination)
+}
 
+func (rt *RouteTable) RemoveRouteByLabel(label string) error {
+	rt.mu.Lock()
+	defer rt.mu.Unlock()
+
+	destination := rt.label2Destination[label]
+	if destination == nil {
+		return nil
+	}
+
+	err := rt.removeRoute(*destination)
+	if err != nil {
+		return err
+	}
+	delete(rt.label2Destination, label)
+	return nil
+}
+
+func (rt *RouteTable) removeRoute(destination net.IPNet) error {
 	currentNode := rt.routes // root
 	maskLen, _ := destination.Mask.Size()
 	if maskLen <= 0 {

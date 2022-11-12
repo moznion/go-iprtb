@@ -384,3 +384,96 @@ func TestRouteTable_FindRoute_WithInvalidIpv6(t *testing.T) {
 	_, err := rtb.FindRoute(net.IP{0xff, 0xff, 0xff, 0xff, 0xff})
 	assert.ErrorIs(t, err, ErrInvalidIPv6Length)
 }
+
+func TestRouteTable_WithLabel(t *testing.T) {
+	label := "label-1"
+
+	rtb := NewRouteTable()
+	err := rtb.AddRouteWithLabel(net.IPNet{
+		IP:   net.IPv4(192, 0, 2, 0),
+		Mask: net.IPv4Mask(255, 255, 255, 0),
+	}, net.IPv4(192, 0, 2, 1), "ifb0", 1, label)
+	assert.NoError(t, err)
+	{
+		maybeMatchedRoute, err := rtb.MatchRoute(net.IPv4(192, 0, 2, 100))
+		assert.NoError(t, err)
+		assert.True(t, maybeMatchedRoute.IsSome())
+		assert.Equal(t, net.IPv4(192, 0, 2, 1), maybeMatchedRoute.Unwrap().Gateway)
+		assert.NotEmpty(t, rtb.label2Destination)
+	}
+
+	err = rtb.UpdateByLabel(label, net.IPv4(192, 0, 2, 2), "ifb0", 1)
+	assert.NoError(t, err)
+	{
+		maybeMatchedRoute, err := rtb.MatchRoute(net.IPv4(192, 0, 2, 100))
+		assert.NoError(t, err)
+		assert.True(t, maybeMatchedRoute.IsSome())
+		assert.Equal(t, net.IPv4(192, 0, 2, 2), maybeMatchedRoute.Unwrap().Gateway)
+	}
+
+	err = rtb.RemoveRouteByLabel(label)
+	assert.NoError(t, err)
+	{
+		maybeMatchedRoute, err := rtb.MatchRoute(net.IPv4(192, 0, 2, 100))
+		assert.NoError(t, err)
+		assert.False(t, maybeMatchedRoute.IsSome())
+		assert.Empty(t, rtb.label2Destination)
+	}
+}
+
+func TestRouteTable_WithNotExistedLabel(t *testing.T) {
+	label := "label-1"
+
+	rtb := NewRouteTable()
+	err := rtb.AddRouteWithLabel(net.IPNet{
+		IP:   net.IPv4(192, 0, 2, 0),
+		Mask: net.IPv4Mask(255, 255, 255, 0),
+	}, net.IPv4(192, 0, 2, 1), "ifb0", 1, label)
+	assert.NoError(t, err)
+	{
+		maybeMatchedRoute, err := rtb.MatchRoute(net.IPv4(192, 0, 2, 100))
+		assert.NoError(t, err)
+		assert.True(t, maybeMatchedRoute.IsSome())
+		assert.Equal(t, net.IPv4(192, 0, 2, 1), maybeMatchedRoute.Unwrap().Gateway)
+	}
+
+	err = rtb.UpdateByLabel("__invalid_label__", net.IPv4(192, 0, 2, 2), "ifb0", 1)
+	assert.NoError(t, err)
+	{
+		maybeMatchedRoute, err := rtb.MatchRoute(net.IPv4(192, 0, 2, 100))
+		assert.NoError(t, err)
+		assert.True(t, maybeMatchedRoute.IsSome())
+		assert.Equal(t, net.IPv4(192, 0, 2, 1), maybeMatchedRoute.Unwrap().Gateway)
+	}
+
+	err = rtb.RemoveRouteByLabel("__invalid_label__")
+	assert.NoError(t, err)
+	{
+		maybeMatchedRoute, err := rtb.MatchRoute(net.IPv4(192, 0, 2, 100))
+		assert.NoError(t, err)
+		assert.True(t, maybeMatchedRoute.IsSome())
+		assert.Equal(t, net.IPv4(192, 0, 2, 1), maybeMatchedRoute.Unwrap().Gateway)
+	}
+}
+
+func TestRouteTable_AddRouteWithLabel_WithInvalidIpv6(t *testing.T) {
+	rtb := NewRouteTable()
+	err := rtb.AddRouteWithLabel(net.IPNet{
+		IP:   net.IP{0xff, 0xff, 0xff, 0xff, 0xff},
+		Mask: net.IPMask{0xff, 0xff, 0xff, 0xff, 0xff},
+	}, net.IP{0xff, 0xff, 0xff, 0xff, 0xff}, "ifb0", 1, "__label__")
+	assert.ErrorIs(t, err, ErrInvalidIPv6Length)
+}
+
+func TestRouteTable_RemoveRouteByLabel_WithInvalidIpv6(t *testing.T) {
+	rtb := NewRouteTable()
+
+	label := "__label__"
+	rtb.label2Destination[label] = &net.IPNet{
+		IP:   net.IP{0xff, 0xff, 0xff, 0xff, 0xff},
+		Mask: net.IPMask{0xff, 0xff, 0xff, 0xff, 0xff},
+	}
+
+	err := rtb.RemoveRouteByLabel(label)
+	assert.ErrorIs(t, err, ErrInvalidIPv6Length)
+}
