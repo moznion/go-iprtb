@@ -84,7 +84,7 @@ And please see also [examples_test.go](./examples_test.go).
 
 This library provides "label" support on `AddRouteWithLabel()`, `UpdateRouteByLabel()`, and `RemoveRouteByLabel()`.
 
-`AddRouteWithLabel()` function registers a route with label and that label can be used to update and remove the label
+`AddRouteWithLabel()` function registers a route with a label and that label can be used to update and remove the route
 by `UpdateRouteByLabel()` and `RemoveRouteByLabel()` instead of passing the actual destination information.
 
 If there is no associated label, those updating functions with the label do nothing.
