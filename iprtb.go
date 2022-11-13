@@ -48,7 +48,7 @@ func (rt *RouteTable) AddRouteWithLabel(label string, route *Route) error {
 	if err != nil {
 		return err
 	}
-	rt.label2Destination[label] = &route.Destination
+	rt.label2Destination[label] = route.Destination
 	return nil
 }
 
@@ -63,7 +63,7 @@ func (rt *RouteTable) UpdateRouteByLabel(label string, gateway net.IP, nwInterfa
 		return nil
 	}
 	return rt.addRoute(&Route{
-		Destination:      *destination,
+		Destination:      destination,
 		Gateway:          gateway,
 		NetworkInterface: nwInterface,
 		Metric:           metric,
@@ -133,7 +133,7 @@ func (rt *RouteTable) addRoute(route *Route) error {
 
 // RemoveRoute removes a route that is associated with a given destination.
 // If there is no route to remove, this does nothing.
-func (rt *RouteTable) RemoveRoute(destination net.IPNet) error {
+func (rt *RouteTable) RemoveRoute(destination *net.IPNet) error {
 	rt.mu.Lock()
 	defer rt.mu.Unlock()
 	return rt.removeRoute(destination)
@@ -150,7 +150,7 @@ func (rt *RouteTable) RemoveRouteByLabel(label string) error {
 		return nil
 	}
 
-	err := rt.removeRoute(*destination)
+	err := rt.removeRoute(destination)
 	if err != nil {
 		return err
 	}
@@ -158,7 +158,7 @@ func (rt *RouteTable) RemoveRouteByLabel(label string) error {
 	return nil
 }
 
-func (rt *RouteTable) removeRoute(destination net.IPNet) error {
+func (rt *RouteTable) removeRoute(destination *net.IPNet) error {
 	currentNode := rt.routes // root
 	maskLen, _ := destination.Mask.Size()
 	if maskLen <= 0 {

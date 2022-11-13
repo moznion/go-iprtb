@@ -18,7 +18,7 @@ func main() {
 	rtb := iprtb.NewRouteTable()
 
 	err := rtb.AddRoute(&Route{
-		Destination: net.IPNet{
+		Destination: &net.IPNet{
 			IP:   net.IPv4(192, 0, 2, 0),
 			Mask: net.IPv4Mask(255, 255, 255, 0),
 		},
@@ -31,7 +31,7 @@ func main() {
 	}
 
 	err = rtb.AddRoute(&Route{
-		Destination: net.IPNet{
+		Destination: &net.IPNet{
 			IP:   net.IPv4(192, 0, 2, 255),
 			Mask: net.IPv4Mask(255, 255, 255, 255),
 		},

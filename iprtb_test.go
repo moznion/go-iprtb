@@ -16,7 +16,7 @@ func TestRouteTable_MatchRoute(t *testing.T) {
 	}
 
 	route1 := &Route{
-		Destination: net.IPNet{
+		Destination: &net.IPNet{
 			IP:   net.IPv4(192, 0, 2, 0),
 			Mask: net.IPv4Mask(255, 255, 255, 0),
 		},
@@ -28,7 +28,7 @@ func TestRouteTable_MatchRoute(t *testing.T) {
 	assert.NoError(t, err)
 
 	route2 := &Route{
-		Destination: net.IPNet{
+		Destination: &net.IPNet{
 			IP:   net.IPv4(192, 0, 2, 255),
 			Mask: net.IPv4Mask(255, 255, 255, 255),
 		},
@@ -40,7 +40,7 @@ func TestRouteTable_MatchRoute(t *testing.T) {
 	assert.NoError(t, err)
 
 	route3 := &Route{
-		Destination: net.IPNet{
+		Destination: &net.IPNet{
 			IP:   net.IP{0x20, 0x01, 0x0d, 0xb8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
 			Mask: net.IPMask{0xff, 0xff, 0xff, 0xff, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
 		},
@@ -52,7 +52,7 @@ func TestRouteTable_MatchRoute(t *testing.T) {
 	assert.NoError(t, err)
 
 	route4 := &Route{
-		Destination: net.IPNet{
+		Destination: &net.IPNet{
 			IP:   net.IP{0x20, 0x01, 0x0d, 0xb8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff},
 			Mask: net.IPMask{0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff},
 		},
@@ -117,7 +117,7 @@ func TestRouteTable_RemoveRoute(t *testing.T) {
 	rtb := NewRouteTable()
 
 	route1 := &Route{
-		Destination: net.IPNet{
+		Destination: &net.IPNet{
 			IP:   net.IPv4(192, 0, 2, 0),
 			Mask: net.IPv4Mask(255, 255, 255, 0),
 		},
@@ -129,7 +129,7 @@ func TestRouteTable_RemoveRoute(t *testing.T) {
 	assert.NoError(t, err)
 
 	route2 := &Route{
-		Destination: net.IPNet{
+		Destination: &net.IPNet{
 			IP:   net.IPv4(192, 0, 3, 0),
 			Mask: net.IPv4Mask(255, 255, 255, 0),
 		},
@@ -158,7 +158,7 @@ func TestRouteTable_RemoveRoute(t *testing.T) {
 	err = rtb.RemoveRoute(route2.Destination)
 	assert.NoError(t, err)
 
-	notExistingRoute := net.IPNet{
+	notExistingRoute := &net.IPNet{
 		IP:   net.IPv4(192, 0, 3, 255),
 		Mask: net.IPv4Mask(255, 255, 255, 255),
 	}
@@ -181,7 +181,7 @@ func TestRouteTable_MatchRoute_DefaultRoute(t *testing.T) {
 	rtb := NewRouteTable()
 
 	route1 := &Route{
-		Destination: net.IPNet{
+		Destination: &net.IPNet{
 			IP:   net.IPv4(192, 0, 2, 0),
 			Mask: net.IPv4Mask(255, 255, 255, 0),
 		},
@@ -193,7 +193,7 @@ func TestRouteTable_MatchRoute_DefaultRoute(t *testing.T) {
 	assert.NoError(t, err)
 
 	route2 := &Route{
-		Destination: net.IPNet{
+		Destination: &net.IPNet{
 			IP:   net.IPv4(0, 0, 0, 0),
 			Mask: net.IPv4Mask(0, 0, 0, 0),
 		},
@@ -223,7 +223,7 @@ func TestRouteTable_RemoveRoute_DefaultRoute(t *testing.T) {
 	rtb := NewRouteTable()
 
 	var route = &Route{
-		Destination: net.IPNet{
+		Destination: &net.IPNet{
 			IP:   net.IPv4(0, 0, 0, 0),
 			Mask: net.IPv4Mask(0, 0, 0, 0),
 		},
@@ -241,7 +241,7 @@ func TestRouteTable_RemoveRoute_DefaultRoute(t *testing.T) {
 		assert.Equal(t, route.Gateway, maybeMatchedRoute.Unwrap().Gateway)
 	}
 
-	err = rtb.RemoveRoute(net.IPNet{
+	err = rtb.RemoveRoute(&net.IPNet{
 		IP:   net.IPv4(0, 0, 0, 0),
 		Mask: net.IPv4Mask(0, 0, 0, 0),
 	})
@@ -258,7 +258,7 @@ func TestRouteTable_AddRoute_WithInvalidIPv6(t *testing.T) {
 	rtb := NewRouteTable()
 
 	route := &Route{
-		Destination: net.IPNet{
+		Destination: &net.IPNet{
 			IP:   net.IP{0xff, 0xff, 0xff, 0xff, 0xff},
 			Mask: net.IPMask{0xff, 0xff, 0xff, 0xff, 0xff},
 		},
@@ -280,7 +280,7 @@ func TestRouteTable_MatchRoute_WithInvalidIPv6(t *testing.T) {
 func TestRouteTable_RemoveRoute_WithInvalidIPv6(t *testing.T) {
 	rtb := NewRouteTable()
 
-	err := rtb.RemoveRoute(net.IPNet{
+	err := rtb.RemoveRoute(&net.IPNet{
 		IP:   net.IP{0xff, 0xff, 0xff, 0xff, 0xff},
 		Mask: net.IPMask{0xff, 0xff, 0xff, 0xff, 0xff},
 	})
@@ -290,7 +290,7 @@ func TestRouteTable_RemoveRoute_WithInvalidIPv6(t *testing.T) {
 func TestRouteTable_AddRoute_ForUpdate(t *testing.T) {
 	rtb := NewRouteTable()
 
-	dst := net.IPNet{
+	dst := &net.IPNet{
 		IP:   net.IPv4(192, 0, 2, 0),
 		Mask: net.IPv4Mask(255, 255, 255, 0),
 	}
@@ -342,7 +342,7 @@ func TestRouteTable_FindRoute(t *testing.T) {
 	}
 
 	route1 := &Route{
-		Destination: net.IPNet{
+		Destination: &net.IPNet{
 			IP:   net.IPv4(192, 0, 2, 0),
 			Mask: net.IPv4Mask(255, 255, 255, 0),
 		},
@@ -354,7 +354,7 @@ func TestRouteTable_FindRoute(t *testing.T) {
 	assert.NoError(t, err)
 
 	route2 := &Route{
-		Destination: net.IPNet{
+		Destination: &net.IPNet{
 			IP:   net.IPv4(192, 0, 2, 255),
 			Mask: net.IPv4Mask(255, 255, 255, 255),
 		},
@@ -366,7 +366,7 @@ func TestRouteTable_FindRoute(t *testing.T) {
 	assert.NoError(t, err)
 
 	route3 := &Route{
-		Destination: net.IPNet{
+		Destination: &net.IPNet{
 			IP:   net.IP{0x20, 0x01, 0x0d, 0xb8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
 			Mask: net.IPMask{0xff, 0xff, 0xff, 0xff, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
 		},
@@ -378,7 +378,7 @@ func TestRouteTable_FindRoute(t *testing.T) {
 	assert.NoError(t, err)
 
 	route4 := &Route{
-		Destination: net.IPNet{
+		Destination: &net.IPNet{
 			IP:   net.IP{0x20, 0x01, 0x0d, 0xb8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff},
 			Mask: net.IPMask{0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff},
 		},
@@ -437,7 +437,7 @@ func TestRouteTable_FindRoute_DefaultRoute(t *testing.T) {
 	rtb := NewRouteTable()
 
 	route := &Route{
-		Destination: net.IPNet{
+		Destination: &net.IPNet{
 			IP:   net.IPv4(0, 0, 0, 0),
 			Mask: net.IPv4Mask(0, 0, 0, 0),
 		},
@@ -465,7 +465,7 @@ func TestRouteTable_FindRoute_ExactMatch(t *testing.T) {
 	rtb := NewRouteTable()
 
 	route := &Route{
-		Destination: net.IPNet{
+		Destination: &net.IPNet{
 			IP:   net.IPv4(192, 0, 2, 123),
 			Mask: net.IPv4Mask(255, 255, 255, 255),
 		},
@@ -496,7 +496,7 @@ func TestRouteTable_WithLabel(t *testing.T) {
 	rtb := NewRouteTable()
 
 	route := &Route{
-		Destination: net.IPNet{
+		Destination: &net.IPNet{
 			IP:   net.IPv4(192, 0, 2, 0),
 			Mask: net.IPv4Mask(255, 255, 255, 0),
 		},
@@ -539,7 +539,7 @@ func TestRouteTable_WithNotExistedLabel(t *testing.T) {
 	rtb := NewRouteTable()
 
 	route := &Route{
-		Destination: net.IPNet{
+		Destination: &net.IPNet{
 			IP:   net.IPv4(192, 0, 2, 0),
 			Mask: net.IPv4Mask(255, 255, 255, 0),
 		},
@@ -581,7 +581,7 @@ func TestRouteTable_AddRouteWithLabel_WithInvalidIpv6(t *testing.T) {
 	rtb := NewRouteTable()
 
 	route := &Route{
-		Destination: net.IPNet{
+		Destination: &net.IPNet{
 			IP:   net.IP{0xff, 0xff, 0xff, 0xff, 0xff},
 			Mask: net.IPMask{0xff, 0xff, 0xff, 0xff, 0xff},
 		},
@@ -616,7 +616,7 @@ func TestRouteTable_DumpRouteTable(t *testing.T) {
 	metric := 1
 
 	route1 := &Route{
-		Destination: net.IPNet{
+		Destination: &net.IPNet{
 			IP:   net.IPv4(192, 0, 2, 0),
 			Mask: net.IPv4Mask(255, 255, 255, 0),
 		},
@@ -628,7 +628,7 @@ func TestRouteTable_DumpRouteTable(t *testing.T) {
 	assert.NoError(t, err)
 
 	route2 := &Route{
-		Destination: net.IPNet{
+		Destination: &net.IPNet{
 			IP:   net.IPv4(192, 0, 2, 255),
 			Mask: net.IPv4Mask(255, 255, 255, 255),
 		},
@@ -640,7 +640,7 @@ func TestRouteTable_DumpRouteTable(t *testing.T) {
 	assert.NoError(t, err)
 
 	route3 := &Route{
-		Destination: net.IPNet{
+		Destination: &net.IPNet{
 			IP:   net.IP{0x20, 0x01, 0x0d, 0xb8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
 			Mask: net.IPMask{0xff, 0xff, 0xff, 0xff, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
 		},
@@ -652,7 +652,7 @@ func TestRouteTable_DumpRouteTable(t *testing.T) {
 	assert.NoError(t, err)
 
 	route4 := &Route{
-		Destination: net.IPNet{
+		Destination: &net.IPNet{
 			IP:   net.IP{0x20, 0x01, 0x0d, 0xb8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff},
 			Mask: net.IPMask{0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff},
 		},
