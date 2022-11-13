@@ -512,6 +512,7 @@ func TestRouteTable_WithLabel(t *testing.T) {
 		assert.True(t, maybeMatchedRoute.IsSome())
 		assert.Equal(t, net.IPv4(192, 0, 2, 1), maybeMatchedRoute.Unwrap().Gateway)
 		assert.NotEmpty(t, rtb.label2Destination)
+		assert.NotEmpty(t, rtb.destination2Label)
 	}
 
 	err = rtb.UpdateRouteByLabel(label, net.IPv4(192, 0, 2, 2), "ifb0", 1)
@@ -530,6 +531,7 @@ func TestRouteTable_WithLabel(t *testing.T) {
 		assert.NoError(t, err)
 		assert.False(t, maybeMatchedRoute.IsSome())
 		assert.Empty(t, rtb.label2Destination)
+		assert.Empty(t, rtb.destination2Label)
 	}
 }
 
@@ -716,6 +718,7 @@ func TestRouteTable_ClearRoutes(t *testing.T) {
 		assert.Equal(t, route2.Gateway, maybeMatchedRoute.Unwrap().Gateway)
 	}
 	assert.Len(t, rtb.label2Destination, 2)
+	assert.Len(t, rtb.destination2Label, 2)
 
 	rtb.ClearRoutes()
 	{
@@ -729,4 +732,50 @@ func TestRouteTable_ClearRoutes(t *testing.T) {
 		assert.True(t, maybeMatchedRoute.IsNone())
 	}
 	assert.Empty(t, rtb.label2Destination)
+	assert.Empty(t, rtb.destination2Label)
+}
+
+func TestRouteTable_RemoveRoute_DestroysLabelMapping(t *testing.T) {
+	rtb := NewRouteTable()
+
+	dst1 := &net.IPNet{
+		IP:   net.IPv4(192, 0, 2, 0),
+		Mask: net.IPv4Mask(255, 255, 255, 0),
+	}
+	err := rtb.AddRouteWithLabel("__label1__", &Route{
+		Destination:      dst1,
+		Gateway:          net.IPv4(192, 0, 2, 1),
+		NetworkInterface: "ifb0",
+		Metric:           1,
+	})
+	assert.NoError(t, err)
+
+	dst2 := &net.IPNet{
+		IP:   net.IPv4(192, 0, 2, 255),
+		Mask: net.IPv4Mask(255, 255, 255, 0),
+	}
+	err = rtb.AddRouteWithLabel("__label2__", &Route{
+		Destination:      dst2,
+		Gateway:          net.IPv4(192, 0, 2, 255),
+		NetworkInterface: "ifb0",
+		Metric:           1,
+	})
+	assert.NoError(t, err)
+
+	assert.Len(t, rtb.label2Destination, 2)
+	assert.Len(t, rtb.destination2Label, 2)
+
+	err = rtb.RemoveRoute(dst1)
+	assert.NoError(t, err)
+
+	// should remove an internal mapping for a label
+	assert.Len(t, rtb.label2Destination, 1)
+	assert.Len(t, rtb.destination2Label, 1)
+
+	err = rtb.RemoveRoute(dst2)
+	assert.NoError(t, err)
+
+	// should remove an internal mapping for a label (i.e. removes all)
+	assert.Empty(t, rtb.label2Destination)
+	assert.Empty(t, rtb.destination2Label)
 }
