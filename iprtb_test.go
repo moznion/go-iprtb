@@ -675,3 +675,58 @@ func TestRouteTable_DumpRouteTable(t *testing.T) {
 192.0.2.0/24	192.0.2.1	ifb0	1
 `, dumped.String())
 }
+
+func TestRouteTable_ClearRoutes(t *testing.T) {
+	rtb := NewRouteTable()
+
+	route1 := &Route{
+		Destination: &net.IPNet{
+			IP:   net.IPv4(192, 0, 2, 0),
+			Mask: net.IPv4Mask(255, 255, 255, 0),
+		},
+		Gateway:          net.IPv4(192, 0, 2, 1),
+		NetworkInterface: "ifb0",
+		Metric:           1,
+	}
+	err := rtb.AddRouteWithLabel("__label1__", route1)
+	assert.NoError(t, err)
+
+	route2 := &Route{
+		Destination: &net.IPNet{
+			IP:   net.IPv4(192, 0, 3, 0),
+			Mask: net.IPv4Mask(255, 255, 255, 0),
+		},
+		Gateway:          net.IPv4(192, 0, 3, 1),
+		NetworkInterface: "ifb0",
+		Metric:           1,
+	}
+	err = rtb.AddRouteWithLabel("__label2__", route2)
+	assert.NoError(t, err)
+
+	{
+		maybeMatchedRoute, err := rtb.MatchRoute(net.IPv4(192, 0, 2, 100))
+		assert.NoError(t, err)
+		assert.True(t, maybeMatchedRoute.IsSome())
+		assert.Equal(t, route1.Gateway, maybeMatchedRoute.Unwrap().Gateway)
+	}
+	{
+		maybeMatchedRoute, err := rtb.MatchRoute(net.IPv4(192, 0, 3, 100))
+		assert.NoError(t, err)
+		assert.True(t, maybeMatchedRoute.IsSome())
+		assert.Equal(t, route2.Gateway, maybeMatchedRoute.Unwrap().Gateway)
+	}
+	assert.Len(t, rtb.label2Destination, 2)
+
+	rtb.ClearRoutes()
+	{
+		maybeMatchedRoute, err := rtb.MatchRoute(net.IPv4(192, 0, 2, 100))
+		assert.NoError(t, err)
+		assert.True(t, maybeMatchedRoute.IsNone())
+	}
+	{
+		maybeMatchedRoute, err := rtb.MatchRoute(net.IPv4(192, 0, 3, 100))
+		assert.NoError(t, err)
+		assert.True(t, maybeMatchedRoute.IsNone())
+	}
+	assert.Empty(t, rtb.label2Destination)
+}

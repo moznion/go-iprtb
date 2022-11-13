@@ -317,3 +317,67 @@ func ExampleRouteTable_DumpRouteTable() {
 	// 192.0.2.255/32	192.0.2.255	ifb0	1
 	// 192.0.2.0/24	192.0.2.1	ifb0	1
 }
+
+func ExampleRouteTable_ClearRoutes() {
+	rtb := NewRouteTable()
+
+	dst1 := &net.IPNet{
+		IP:   net.IPv4(192, 0, 2, 0),
+		Mask: net.IPv4Mask(255, 255, 255, 0),
+	}
+	err := rtb.AddRoute(&Route{
+		Destination:      dst1,
+		Gateway:          net.IPv4(192, 0, 2, 1),
+		NetworkInterface: "ifb0",
+		Metric:           1,
+	})
+	if err != nil {
+		panic(err)
+	}
+
+	dst2 := &net.IPNet{
+		IP:   net.IPv4(192, 0, 2, 255),
+		Mask: net.IPv4Mask(255, 255, 255, 255),
+	}
+	err = rtb.AddRoute(&Route{
+		Destination:      dst2,
+		Gateway:          net.IPv4(192, 0, 2, 255),
+		NetworkInterface: "ifb0",
+		Metric:           1,
+	})
+	if err != nil {
+		panic(err)
+	}
+
+	matched, err := rtb.MatchRoute(net.IPv4(192, 0, 2, 100))
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println(matched.Unwrap())
+
+	matched, err = rtb.MatchRoute(net.IPv4(192, 0, 2, 255))
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println(matched.Unwrap())
+
+	rtb.ClearRoutes()
+
+	matched, err = rtb.MatchRoute(net.IPv4(192, 0, 2, 100))
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println(matched.IsSome())
+
+	matched, err = rtb.MatchRoute(net.IPv4(192, 0, 2, 255))
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println(matched.IsSome())
+
+	// Output:
+	// 192.0.2.0/24	192.0.2.1	ifb0	1
+	// 192.0.2.255/32	192.0.2.255	ifb0	1
+	// false
+	// false
+}
