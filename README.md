@@ -80,7 +80,62 @@ And please see also [examples_test.go](./examples_test.go).
 
 [![GoDoc](https://godoc.org/github.com/moznion/go-iprtb?status.svg)](https://godoc.org/github.com/moznion/go-iprtb)
 
+### Label support
+
+This library provides "label" support on `AddRouteWithLabel()`, `UpdateRouteByLabel()`, and `RemoveRouteByLabel()`.
+
+`AddRouteWithLabel()` function registers a route with label and that label can be used to update and remove the label
+by `UpdateRouteByLabel()` and `RemoveRouteByLabel()` instead of passing the actual destination information.
+
+If there is no associated label, those updating functions with the label do nothing.
+
+### Longest matching by prefix tree 
+
+In the scenario that the routing table has the following three routes;
+
+| Route          | Route Binary                            | Gateway |
+|----------------|-----------------------------------------|---------|
+| 10.0.0.0/8     | **00001010** 00000000 00000000 00000000 | GW1     |
+| 192.0.0.0/8    | **11000000** 00000000 00000000 00000000 | GW2     |
+| 192.128.0.0/9  | **11000000 1**0000000 00000000 00000000 | GW3     |
+
+This route table can transform into the following prefix tree:
+
+```
+                 R
+                / \
+              /     \
+            0         1
+           /           \
+          0             1
+         /             /
+        0             0
+       /             /
+      0             0
+       \           /
+        1         0
+       /         /
+      0         0
+       \       /
+        1     0
+       /     /
+ GW1 [0]   [0] GW2
+             \
+             [1] GW3
+
+† R: Root Node
+†† [n]: Terminal Node
+```
+
+Then the target IP address only has to traverse this tree as much as longer to look up a route. It derives the result like the following.
+
+| Target IP     | Target IP Binary                      | Found Gateway |
+|---------------|---------------------------------------|---------------|
+| 10.10.10.10   | 0000101[0] 00001010 00001010 00001010 | GW1           |
+| 192.10.10.10  | 1100000[0] 00001010 00001010 00001010 | GW2           |
+| 192.192.10.10 | 11000000 [1]1000000 00001010 00001010 | GW3           |
+| 127.0.0.1     | 01111111 00000000 00000000 00000001   | N/A           |
+
 ## Author
 
 moznion (<moznion@mail.moznion.net>)
-
