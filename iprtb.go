@@ -202,6 +202,14 @@ func (rt *RouteTable) removeRoute(destination *net.IPNet) error {
 	return nil
 }
 
+// ClearRoutes removes all routes from the routing table.
+func (rt *RouteTable) ClearRoutes() {
+	rt.mu.Lock()
+	defer rt.mu.Unlock()
+	rt.routes = &node{}
+	rt.label2Destination = map[string]*net.IPNet{}
+}
+
 // MatchRoute attempts to check whether the given IP address matches the routing table or not.
 // If there is matched route, this returns that route information that is wrapped by optional.Some.
 // Else, this returns the value of optional.None.
