@@ -18,7 +18,7 @@ func (rs Routes) String() string {
 
 // Route is an entry of routing table.
 type Route struct {
-	Destination      net.IPNet
+	Destination      *net.IPNet
 	Gateway          net.IP
 	NetworkInterface string
 	Metric           int

@@ -9,7 +9,7 @@ func ExampleRouteTable_MatchRoute() {
 	rtb := NewRouteTable()
 
 	err := rtb.AddRoute(&Route{
-		Destination: net.IPNet{
+		Destination: &net.IPNet{
 			IP:   net.IPv4(192, 0, 2, 0),
 			Mask: net.IPv4Mask(255, 255, 255, 0),
 		},
@@ -22,7 +22,7 @@ func ExampleRouteTable_MatchRoute() {
 	}
 
 	err = rtb.AddRoute(&Route{
-		Destination: net.IPNet{
+		Destination: &net.IPNet{
 			IP:   net.IPv4(192, 0, 2, 255),
 			Mask: net.IPv4Mask(255, 255, 255, 255),
 		},
@@ -77,7 +77,7 @@ func ExampleRouteTable_FindRoute() {
 	rtb := NewRouteTable()
 
 	err := rtb.AddRoute(&Route{
-		Destination: net.IPNet{
+		Destination: &net.IPNet{
 			IP:   net.IPv4(192, 0, 2, 0),
 			Mask: net.IPv4Mask(255, 255, 255, 0),
 		},
@@ -90,7 +90,7 @@ func ExampleRouteTable_FindRoute() {
 	}
 
 	err = rtb.AddRoute(&Route{
-		Destination: net.IPNet{
+		Destination: &net.IPNet{
 			IP:   net.IPv4(192, 0, 2, 255),
 			Mask: net.IPv4Mask(255, 255, 255, 255),
 		},
@@ -138,7 +138,7 @@ func ExampleRouteTable_FindRoute() {
 func ExampleRouteTable_RemoveRoute() {
 	rtb := NewRouteTable()
 
-	dst := net.IPNet{
+	dst := &net.IPNet{
 		IP:   net.IPv4(192, 0, 2, 0),
 		Mask: net.IPv4Mask(255, 255, 255, 0),
 	}
@@ -180,7 +180,7 @@ func ExampleRouteTable_RemoveRouteByLabel() {
 
 	label := "__label__"
 	err := rtb.AddRouteWithLabel(label, &Route{
-		Destination: net.IPNet{
+		Destination: &net.IPNet{
 			IP:   net.IPv4(192, 0, 2, 0),
 			Mask: net.IPv4Mask(255, 255, 255, 0),
 		},
@@ -220,7 +220,7 @@ func ExampleRouteTable_UpdateRouteByLabel() {
 
 	label := "__label__"
 	err := rtb.AddRouteWithLabel(label, &Route{
-		Destination: net.IPNet{
+		Destination: &net.IPNet{
 			IP:   net.IPv4(192, 0, 2, 0),
 			Mask: net.IPv4Mask(255, 255, 255, 0),
 		},
@@ -257,7 +257,7 @@ func ExampleRouteTable_DumpRouteTable() {
 	rtb := NewRouteTable()
 
 	err := rtb.AddRoute(&Route{
-		Destination: net.IPNet{
+		Destination: &net.IPNet{
 			IP:   net.IPv4(192, 0, 2, 0),
 			Mask: net.IPv4Mask(255, 255, 255, 0),
 		},
@@ -270,7 +270,7 @@ func ExampleRouteTable_DumpRouteTable() {
 	}
 
 	err = rtb.AddRoute(&Route{
-		Destination: net.IPNet{
+		Destination: &net.IPNet{
 			IP:   net.IPv4(192, 0, 2, 255),
 			Mask: net.IPv4Mask(255, 255, 255, 255),
 		},
@@ -283,7 +283,7 @@ func ExampleRouteTable_DumpRouteTable() {
 	}
 
 	err = rtb.AddRoute(&Route{
-		Destination: net.IPNet{
+		Destination: &net.IPNet{
 			IP:   net.IP{0x20, 0x01, 0x0d, 0xb8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
 			Mask: net.IPMask{0xff, 0xff, 0xff, 0xff, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
 		},
@@ -296,7 +296,7 @@ func ExampleRouteTable_DumpRouteTable() {
 	}
 
 	err = rtb.AddRoute(&Route{
-		Destination: net.IPNet{
+		Destination: &net.IPNet{
 			IP:   net.IP{0x20, 0x01, 0x0d, 0xb8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff},
 			Mask: net.IPMask{0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff},
 		},
