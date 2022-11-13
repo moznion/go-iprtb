@@ -16,6 +16,7 @@ var ErrInvalidIPv6Length = errors.New("given IPv6 address doesn't satisfy the IP
 type RouteTable struct {
 	routes            *node
 	label2Destination map[string]*net.IPNet
+	destination2Label map[string]string
 	mu                sync.Mutex
 }
 
@@ -24,6 +25,7 @@ func NewRouteTable() *RouteTable {
 	return &RouteTable{
 		routes:            &node{},
 		label2Destination: map[string]*net.IPNet{},
+		destination2Label: map[string]string{},
 	}
 }
 
@@ -49,6 +51,7 @@ func (rt *RouteTable) AddRouteWithLabel(label string, route *Route) error {
 		return err
 	}
 	rt.label2Destination[label] = route.Destination
+	rt.destination2Label[route.Destination.String()] = label
 	return nil
 }
 
@@ -136,7 +139,16 @@ func (rt *RouteTable) addRoute(route *Route) error {
 func (rt *RouteTable) RemoveRoute(destination *net.IPNet) error {
 	rt.mu.Lock()
 	defer rt.mu.Unlock()
-	return rt.removeRoute(destination)
+
+	err := rt.removeRoute(destination)
+	if err != nil {
+		return err
+	}
+	if label, ok := rt.destination2Label[destination.String()]; ok {
+		delete(rt.destination2Label, destination.String())
+		delete(rt.label2Destination, label)
+	}
+	return nil
 }
 
 // RemoveRouteByLabel removes a route that is associated with a given label, instead of the actual destination information.
@@ -155,6 +167,7 @@ func (rt *RouteTable) RemoveRouteByLabel(label string) error {
 		return err
 	}
 	delete(rt.label2Destination, label)
+	delete(rt.destination2Label, destination.String())
 	return nil
 }
 
@@ -208,6 +221,7 @@ func (rt *RouteTable) ClearRoutes() {
 	defer rt.mu.Unlock()
 	rt.routes = &node{}
 	rt.label2Destination = map[string]*net.IPNet{}
+	rt.destination2Label = map[string]string{}
 }
 
 // MatchRoute attempts to check whether the given IP address matches the routing table or not.
