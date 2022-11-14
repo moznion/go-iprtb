@@ -98,23 +98,6 @@ func (rt *RouteTable) addRoute(route *Route) error {
 		for rightShift := 0; rightShift <= 7; rightShift++ {
 			bit := toBit(b, rightShift)
 
-			maskLen--
-			if maskLen <= 0 { // terminated
-				if bit == 0 {
-					if currentNode.zeroBitNode == nil {
-						currentNode.zeroBitNode = &node{}
-					}
-					currentNode.zeroBitNode.route = terminalRoute
-				} else {
-					if currentNode.oneBitNode == nil {
-						currentNode.oneBitNode = &node{}
-					}
-					currentNode.oneBitNode.route = terminalRoute
-				}
-
-				return nil
-			}
-
 			var nextNode *node
 			if bit == 0 {
 				if currentNode.zeroBitNode == nil {
@@ -127,6 +110,13 @@ func (rt *RouteTable) addRoute(route *Route) error {
 				}
 				nextNode = currentNode.oneBitNode
 			}
+
+			maskLen--
+			if maskLen <= 0 { // terminated
+				nextNode.route = terminalRoute
+				return nil
+			}
+
 			currentNode = nextNode
 		}
 	}
