@@ -172,10 +172,10 @@ func (rt *RouteTable) RemoveRouteByLabel(label string) error {
 }
 
 func (rt *RouteTable) removeRoute(destination *net.IPNet) error {
-	currentNode := rt.routes // root
+	prevNode := rt.routes // root
 	maskLen, _ := destination.Mask.Size()
 	if maskLen <= 0 {
-		currentNode.route = nil
+		prevNode.route = nil
 		return nil
 	}
 
@@ -184,31 +184,52 @@ func (rt *RouteTable) removeRoute(destination *net.IPNet) error {
 		return fmt.Errorf("failed to remove a route: %w", err)
 	}
 
+	var pathNodes []**node // to brune the not terminated branch
+
 	for _, b := range dstIP {
 		for rightShift := 0; rightShift <= 7; rightShift++ {
 			bit := toBit(b, rightShift)
 
 			maskLen--
-			if maskLen <= 0 { // terminated
-				if bit == 0 && currentNode.zeroBitNode != nil {
-					currentNode.zeroBitNode.route = nil
-				} else if currentNode.oneBitNode != nil {
-					currentNode.oneBitNode.route = nil
+
+			var nextNode **node
+			if bit == 0 {
+				nextNode = &prevNode.zeroBitNode
+			} else {
+				nextNode = &prevNode.oneBitNode
+			}
+
+			if *nextNode == nil {
+				// there is no terminal route that is associated with the given destination to remove; do nothing
+				return nil
+			}
+
+			if maskLen <= 0 {
+				if (*nextNode).route != nil {
+					// node terminated: should remove a route
+					if (*nextNode).zeroBitNode == nil && (*nextNode).oneBitNode == nil {
+						// this terminal node doesn't have any children; do pruning including the terminal node itself
+						for _, pathNode := range pathNodes {
+							*pathNode = nil
+						}
+						*nextNode = nil
+					} else {
+						// this node has some children, so it removes only routing info
+						(*nextNode).route = nil
+					}
 				}
 				return nil
 			}
 
-			var nextNode *node
-			if bit == 0 {
-				nextNode = currentNode.zeroBitNode
+			if (*nextNode).route == nil {
+				// path (i.e. not a terminal) node: this is a candidate to pruning
+				pathNodes = append(pathNodes, nextNode)
 			} else {
-				nextNode = currentNode.oneBitNode
-			}
-			if nextNode == nil {
-				return nil
+				// terminal node: it mustn't prune the branch that has this node and the ancestor nodes
+				pathNodes = []**node{}
 			}
 
-			currentNode = nextNode
+			prevNode = *nextNode
 		}
 	}
 
