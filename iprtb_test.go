@@ -779,3 +779,206 @@ func TestRouteTable_RemoveRoute_DestroysLabelMapping(t *testing.T) {
 	assert.Empty(t, rtb.label2Destination)
 	assert.Empty(t, rtb.destination2Label)
 }
+
+func TestRouteTable_RemoveRoute_DoNotDeleteWhenTheTargetDoesNotTerminate(t *testing.T) {
+	rtb := NewRouteTable()
+
+	err := rtb.AddRouteWithLabel("__label1__", &Route{
+		Destination: &net.IPNet{
+			IP:   net.IPv4(192, 0, 2, 0),
+			Mask: net.IPv4Mask(255, 255, 255, 0),
+		},
+		Gateway:          net.IPv4(192, 0, 2, 1),
+		NetworkInterface: "ifb0",
+		Metric:           1,
+	})
+	assert.NoError(t, err)
+
+	found, _ := rtb.FindRoute(net.IP{192, 0, 2, 100})
+	assert.True(t, found)
+
+	err = rtb.RemoveRoute(&net.IPNet{
+		IP:   net.IPv4(192, 0, 2, 0),
+		Mask: net.IPv4Mask(255, 255, 254, 0),
+	})
+	assert.NoError(t, err)
+
+	found, _ = rtb.FindRoute(net.IP{192, 0, 2, 100})
+	assert.True(t, found)
+}
+
+func TestRouteTable_RemoveRoute_WithNotTerminatedBranchPruning(t *testing.T) {
+	rtb := NewRouteTable()
+
+	/*
+	 * Routes:
+	 *   - GW1: 192.0.2.0/24   => 11000000 00000000   0000001[0] 00000000
+	 *   - GW2: 192.0.0.0/22   => 11000000 00000000   00000[0]00 00000000
+	 *   - GW3: 192.0.0.0/16   => 11000000 0000000[0] 00000000   00000000
+	 *   - GW4: 192.0.128.0/17 => 11000000 00000000   [1]0000000 00000000
+	 *
+	 * Diagram:
+	 *                            R
+	 *                             \
+	 *                              1
+	 *                               \
+	 *                                1
+	 *                               /
+	 *                              0
+	 *                             /
+	 *                            0
+	 *                           /
+	 *                          0
+	 *                         /
+	 *                        0
+	 *                       /
+	 *                      0
+	 *                     /
+	 *                    0
+	 *                   /
+	 *                  0... (7 nodes)
+	 *                 /
+	 *               [0] GW3 <= 3) if this route has been removed, this node should be keeped but the route terminal has to be removed
+	 *               / \
+	 *              0  [1] GW4 <= 4) if this route has been removed, the above nodes until the root node also should be removed
+	 *             /
+	 *            0
+	 *           /
+	 *          0
+	 *         /
+	 *        0
+	 *       /
+	 *      0
+	 *     /
+	 *   [0] GW2 <= 2) if this route has been removed, the above "0" nodes until "GW3" node also should be removed
+	 *     \
+	 *      1 <= † not terminal node
+	 *     /
+	 *   [0] GW1 <= 1) if this route has been removed, the above "1" node also should be removed
+	 */
+
+	label1 := "label1"
+	err := rtb.AddRouteWithLabel(label1, &Route{
+		Destination: &net.IPNet{
+			IP:   net.IPv4(192, 0, 2, 0),
+			Mask: net.IPv4Mask(255, 255, 255, 0),
+		},
+		Gateway:          net.IPv4(192, 0, 2, 1),
+		NetworkInterface: "ifb1",
+		Metric:           1,
+	})
+	assert.NoError(t, err)
+
+	label2 := "label2"
+	err = rtb.AddRouteWithLabel(label2, &Route{
+		Destination: &net.IPNet{
+			IP:   net.IPv4(192, 0, 0, 0),
+			Mask: net.IPv4Mask(255, 255, 252, 0),
+		},
+		Gateway:          net.IPv4(192, 0, 0, 0),
+		NetworkInterface: "ifb2",
+		Metric:           1,
+	})
+	assert.NoError(t, err)
+
+	label3 := "label3"
+	err = rtb.AddRouteWithLabel(label3, &Route{
+		Destination: &net.IPNet{
+			IP:   net.IPv4(192, 0, 0, 0),
+			Mask: net.IPv4Mask(255, 255, 0, 0),
+		},
+		Gateway:          net.IPv4(192, 255, 0, 0),
+		NetworkInterface: "ifb3",
+		Metric:           1,
+	})
+	assert.NoError(t, err)
+
+	label4 := "label4"
+	err = rtb.AddRouteWithLabel(label4, &Route{
+		Destination: &net.IPNet{
+			IP:   net.IPv4(192, 0, 128, 0),
+			Mask: net.IPv4Mask(255, 255, 128, 0),
+		},
+		Gateway:          net.IPv4(192, 255, 0, 0),
+		NetworkInterface: "ifb4",
+		Metric:           1,
+	})
+	assert.NoError(t, err)
+
+	// attempt to remove by not terminated node, but it should do nothing
+	err = rtb.RemoveRoute(&net.IPNet{
+		IP:   net.IPv4(192, 0, 2, 0),
+		Mask: net.IPv4Mask(255, 255, 254, 0),
+	})
+	assert.NoError(t, err)
+	found, _ := rtb.FindRoute(net.IP{192, 0, 2, 100})
+	assert.True(t, found)
+
+	n := rtb.routes.oneBitNode.oneBitNode.zeroBitNode.zeroBitNode.zeroBitNode.zeroBitNode.zeroBitNode.zeroBitNode.
+		zeroBitNode.zeroBitNode.zeroBitNode.zeroBitNode.zeroBitNode.zeroBitNode.zeroBitNode.zeroBitNode.
+		zeroBitNode.zeroBitNode.zeroBitNode.zeroBitNode.zeroBitNode.zeroBitNode.oneBitNode.zeroBitNode
+	assert.NotNil(t, n)
+	assert.NotNil(t, n.route)
+	assert.Nil(t, n.zeroBitNode)
+	assert.Nil(t, n.oneBitNode)
+	maybeMatched, _ := rtb.MatchRoute(net.IP{192, 0, 2, 100})
+	assert.EqualValues(t, "ifb1", maybeMatched.Unwrap().NetworkInterface)
+
+	err = rtb.RemoveRouteByLabel(label1)
+	assert.NoError(t, err)
+	assert.Nil(t,
+		rtb.routes.oneBitNode.oneBitNode.zeroBitNode.zeroBitNode.zeroBitNode.zeroBitNode.zeroBitNode.zeroBitNode.
+			zeroBitNode.zeroBitNode.zeroBitNode.zeroBitNode.zeroBitNode.zeroBitNode.zeroBitNode.zeroBitNode.
+			zeroBitNode.zeroBitNode.zeroBitNode.zeroBitNode.zeroBitNode.zeroBitNode.oneBitNode,
+		"the not terminal branch should be removed",
+	)
+	n = rtb.routes.oneBitNode.oneBitNode.zeroBitNode.zeroBitNode.zeroBitNode.zeroBitNode.zeroBitNode.zeroBitNode.
+		zeroBitNode.zeroBitNode.zeroBitNode.zeroBitNode.zeroBitNode.zeroBitNode.zeroBitNode.zeroBitNode.
+		zeroBitNode.zeroBitNode.zeroBitNode.zeroBitNode.zeroBitNode.zeroBitNode
+	assert.NotNil(t, n)
+	assert.NotNil(t, n.route)
+	assert.Nil(t, n.zeroBitNode)
+	assert.Nil(t, n.oneBitNode)
+	maybeMatched, _ = rtb.MatchRoute(net.IP{192, 0, 2, 100})
+	assert.EqualValues(t, "ifb2", maybeMatched.Unwrap().NetworkInterface)
+
+	err = rtb.RemoveRouteByLabel(label2)
+	assert.Nil(t,
+		rtb.routes.oneBitNode.oneBitNode.zeroBitNode.zeroBitNode.zeroBitNode.zeroBitNode.zeroBitNode.zeroBitNode.
+			zeroBitNode.zeroBitNode.zeroBitNode.zeroBitNode.zeroBitNode.zeroBitNode.zeroBitNode.zeroBitNode.
+			zeroBitNode,
+		"the not terminal branch should be removed",
+	)
+	assert.NoError(t, err)
+	n = rtb.routes.oneBitNode.oneBitNode.zeroBitNode.zeroBitNode.zeroBitNode.zeroBitNode.zeroBitNode.zeroBitNode.
+		zeroBitNode.zeroBitNode.zeroBitNode.zeroBitNode.zeroBitNode.zeroBitNode.zeroBitNode.zeroBitNode
+	assert.NotNil(t, n)
+	assert.NotNil(t, n.route)
+	assert.Nil(t, n.zeroBitNode)
+	assert.NotNil(t, n.oneBitNode)
+	maybeMatched, _ = rtb.MatchRoute(net.IP{192, 0, 2, 100})
+	assert.EqualValues(t, "ifb3", maybeMatched.Unwrap().NetworkInterface)
+
+	err = rtb.RemoveRouteByLabel(label3)
+	assert.NoError(t, err)
+	n = rtb.routes.oneBitNode.oneBitNode.zeroBitNode.zeroBitNode.zeroBitNode.zeroBitNode.zeroBitNode.zeroBitNode.
+		zeroBitNode.zeroBitNode.zeroBitNode.zeroBitNode.zeroBitNode.zeroBitNode.zeroBitNode.zeroBitNode
+	assert.NotNil(t, n)
+	assert.Nil(t, n.route)
+	assert.Nil(t, n.zeroBitNode)
+	assert.NotNil(t, n.oneBitNode)
+	found, _ = rtb.FindRoute(net.IP{192, 0, 2, 100})
+	assert.False(t, found)
+	maybeMatched, _ = rtb.MatchRoute(net.IP{192, 0, 128, 1})
+	assert.EqualValues(t, "ifb4", maybeMatched.Unwrap().NetworkInterface)
+
+	err = rtb.RemoveRouteByLabel(label4)
+	assert.NoError(t, err)
+	n = rtb.routes // root: there is no child route under the root node, so all nodes should be removed
+	assert.NotNil(t, n)
+	assert.Nil(t, n.route)
+	assert.Nil(t, n.zeroBitNode)
+	assert.Nil(t, n.oneBitNode)
+	found, _ = rtb.FindRoute(net.IP{192, 0, 128, 1})
+	assert.False(t, found)
+}
