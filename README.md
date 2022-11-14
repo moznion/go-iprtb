@@ -80,16 +80,7 @@ And please see also [examples_test.go](./examples_test.go).
 
 [![GoDoc](https://godoc.org/github.com/moznion/go-iprtb?status.svg)](https://godoc.org/github.com/moznion/go-iprtb)
 
-### Label support
-
-This library provides "label" support on `AddRouteWithLabel()`, `UpdateRouteByLabel()`, and `RemoveRouteByLabel()`.
-
-`AddRouteWithLabel()` function registers a route with a label and that label can be used to update and remove the route
-by `UpdateRouteByLabel()` and `RemoveRouteByLabel()` instead of passing the actual destination information.
-
-If there is no associated label, those updating functions with the label do nothing.
-
-### Longest matching by prefix tree 
+### Longest matching by prefix tree
 
 In the scenario that the routing table has the following three routes;
 
@@ -136,6 +127,32 @@ Then the target IP address only has to traverse this tree as much as longer to l
 | 192.192.10.10 | 11000000 [1]1000000 00001010 00001010 | GW3           |
 | 127.0.0.1     | 01111111 00000000 00000000 00000001   | N/A           |
 
+This tree implementation contributes to good performance for route matching. This describes the result of the benchmark against the linear search based simple implementation (that comes from [e9a01d251b4388d77f27d3e7ff51d217cecaf7d9](https://github.com/moznion/go-iprtb/tree/e9a01d251b4388d77f27d3e7ff51d217cecaf7d9)):
+
+```
+$ go test -bench=. -benchmem
+goos: linux
+goarch: amd64
+pkg: github.com/moznion/go-iprtb
+cpu: 12th Gen Intel(R) Core(TM) i7-1280P
+Benchmark_PrefixTreeAlgorithm-20        18535410                81.68 ns/op           64 B/op          1 allocs/op
+Benchmark_LinearSearch-20                6148155               192.1 ns/op            96 B/op          1 allocs/op
+PASS
+ok      github.com/moznion/go-iprtb     2.968s
+```
+
+The benchmark code is here: https://gist.github.com/moznion/eb867c8dd2a708f0acd184ee8d5c758b
+
+### Label support
+
+This library provides "label" support on `AddRouteWithLabel()`, `UpdateRouteByLabel()`, and `RemoveRouteByLabel()`.
+
+`AddRouteWithLabel()` function registers a route with a label and that label can be used to update and remove the route
+by `UpdateRouteByLabel()` and `RemoveRouteByLabel()` instead of passing the actual destination information.
+
+If there is no associated label, those updating functions with the label do nothing.
+
 ## Author
 
 moznion (<moznion@mail.moznion.net>)
+
