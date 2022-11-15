@@ -8,6 +8,7 @@ NOTE: This library is isolated from the OS-level routing table. This intends to 
 
 ```go
 import (
+	"context"
 	"fmt"
 	"net"
 
@@ -15,9 +16,10 @@ import (
 )
 
 func main() {
+	ctx := context.Background()
 	rtb := iprtb.NewRouteTable()
 
-	err := rtb.AddRoute(&Route{
+	err := rtb.AddRoute(ctx, &Route{
 		Destination: &net.IPNet{
 			IP:   net.IPv4(192, 0, 2, 0),
 			Mask: net.IPv4Mask(255, 255, 255, 0),
@@ -30,7 +32,7 @@ func main() {
 		panic(err)
 	}
 
-	err = rtb.AddRoute(&Route{
+	err = rtb.AddRoute(ctx, &Route{
 		Destination: &net.IPNet{
 			IP:   net.IPv4(192, 0, 2, 255),
 			Mask: net.IPv4Mask(255, 255, 255, 255),
@@ -43,14 +45,14 @@ func main() {
 		panic(err)
 	}
 
-	maybeRoute, err := rtb.MatchRoute(net.IPv4(192, 0, 2, 100))
+	maybeRoute, err := rtb.MatchRoute(ctx, net.IPv4(192, 0, 2, 100))
 	if err != nil {
 		panic(err)
 	}
 	fmt.Println(maybeRoute.IsSome()) // => true
 	fmt.Println(maybeRoute.Unwrap().String()) // => 192.0.2.0/24	192.0.2.1	ifb0	1
 
-	maybeRoute, err = rtb.MatchRoute(net.IPv4(192, 0, 2, 254))
+	maybeRoute, err = rtb.MatchRoute(ctx, net.IPv4(192, 0, 2, 254))
 	if err != nil {
 		panic(err)
 	}
@@ -58,7 +60,7 @@ func main() {
 	fmt.Println(maybeRoute.Unwrap().String()) // => 192.0.2.0/24	192.0.2.1	ifb0	1
 
 	// longest match
-	maybeRoute, err = rtb.MatchRoute(net.IPv4(192, 0, 2, 255))
+	maybeRoute, err = rtb.MatchRoute(ctx, net.IPv4(192, 0, 2, 255))
 	if err != nil {
 		panic(err)
 	}
@@ -66,7 +68,7 @@ func main() {
 	fmt.Println(maybeRoute.Unwrap().String()) // => 192.0.2.255/32	192.0.2.255	ifb0	1
 
 	// not routes
-	maybeRoute, err = rtb.MatchRoute(net.IPv4(198, 51, 100, 123))
+	maybeRoute, err = rtb.MatchRoute(ctx, net.IPv4(198, 51, 100, 123))
 	if err != nil {
 		panic(err)
 	}
