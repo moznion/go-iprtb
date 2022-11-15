@@ -1,6 +1,7 @@
 package iprtb
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net"
@@ -32,21 +33,21 @@ func NewRouteTable() *RouteTable {
 // AddRoute adds a route to the routing table.
 // If the destination has already existed in the routing table, this overwrites the route information by the given route.
 // In other words, this function behaves as well as "update" against the existing routes.
-func (rt *RouteTable) AddRoute(route *Route) error {
+func (rt *RouteTable) AddRoute(ctx context.Context, route *Route) error {
 	rt.mu.Lock()
 	defer rt.mu.Unlock()
-	return rt.addRoute(route)
+	return rt.addRoute(ctx, route)
 }
 
 // AddRouteWithLabel adds a route to the routing table with a label.
 // If the destination has already existed in the routing table, this overwrites the route information by the given route.
 // The label is capable to use by UpdateRouteByLabel and RemoveRouteByLabel functions instead of the actual destination information.
 // If there already had the given label, it overwrites by the given one.
-func (rt *RouteTable) AddRouteWithLabel(label string, route *Route) error {
+func (rt *RouteTable) AddRouteWithLabel(ctx context.Context, label string, route *Route) error {
 	rt.mu.Lock()
 	defer rt.mu.Unlock()
 
-	err := rt.addRoute(route)
+	err := rt.addRoute(ctx, route)
 	if err != nil {
 		return err
 	}
@@ -57,7 +58,7 @@ func (rt *RouteTable) AddRouteWithLabel(label string, route *Route) error {
 
 // UpdateRouteByLabel updates the existing route that is associated with the label by given parameters.
 // If there is no route that is associated with a given label, this function does nothing.
-func (rt *RouteTable) UpdateRouteByLabel(label string, gateway net.IP, nwInterface string, metric int) error {
+func (rt *RouteTable) UpdateRouteByLabel(ctx context.Context, label string, gateway net.IP, nwInterface string, metric int) error {
 	rt.mu.Lock()
 	defer rt.mu.Unlock()
 
@@ -65,7 +66,7 @@ func (rt *RouteTable) UpdateRouteByLabel(label string, gateway net.IP, nwInterfa
 	if destination == nil {
 		return nil
 	}
-	return rt.addRoute(&Route{
+	return rt.addRoute(ctx, &Route{
 		Destination:      destination,
 		Gateway:          gateway,
 		NetworkInterface: nwInterface,
@@ -73,7 +74,7 @@ func (rt *RouteTable) UpdateRouteByLabel(label string, gateway net.IP, nwInterfa
 	})
 }
 
-func (rt *RouteTable) addRoute(route *Route) error {
+func (rt *RouteTable) addRoute(ctx context.Context, route *Route) error {
 	destination := route.Destination
 	terminalRoute := &Route{
 		Destination:      destination,
@@ -126,11 +127,11 @@ func (rt *RouteTable) addRoute(route *Route) error {
 
 // RemoveRoute removes a route that is associated with a given destination.
 // If there is no route to remove, this does nothing.
-func (rt *RouteTable) RemoveRoute(destination *net.IPNet) error {
+func (rt *RouteTable) RemoveRoute(ctx context.Context, destination *net.IPNet) error {
 	rt.mu.Lock()
 	defer rt.mu.Unlock()
 
-	err := rt.removeRoute(destination)
+	err := rt.removeRoute(ctx, destination)
 	if err != nil {
 		return err
 	}
@@ -143,7 +144,7 @@ func (rt *RouteTable) RemoveRoute(destination *net.IPNet) error {
 
 // RemoveRouteByLabel removes a route that is associated with a given label, instead of the actual destination information.
 // If there is no route that is associated with a given label or the actual destination, this function does nothing.
-func (rt *RouteTable) RemoveRouteByLabel(label string) error {
+func (rt *RouteTable) RemoveRouteByLabel(ctx context.Context, label string) error {
 	rt.mu.Lock()
 	defer rt.mu.Unlock()
 
@@ -152,7 +153,7 @@ func (rt *RouteTable) RemoveRouteByLabel(label string) error {
 		return nil
 	}
 
-	err := rt.removeRoute(destination)
+	err := rt.removeRoute(ctx, destination)
 	if err != nil {
 		return err
 	}
@@ -161,7 +162,7 @@ func (rt *RouteTable) RemoveRouteByLabel(label string) error {
 	return nil
 }
 
-func (rt *RouteTable) removeRoute(destination *net.IPNet) error {
+func (rt *RouteTable) removeRoute(ctx context.Context, destination *net.IPNet) error {
 	prevNode := rt.routes // root
 	maskLen, _ := destination.Mask.Size()
 	if maskLen <= 0 {
@@ -227,7 +228,7 @@ func (rt *RouteTable) removeRoute(destination *net.IPNet) error {
 }
 
 // ClearRoutes removes all routes from the routing table.
-func (rt *RouteTable) ClearRoutes() {
+func (rt *RouteTable) ClearRoutes(ctx context.Context) {
 	rt.mu.Lock()
 	defer rt.mu.Unlock()
 	rt.routes = &node{}
@@ -238,7 +239,7 @@ func (rt *RouteTable) ClearRoutes() {
 // MatchRoute attempts to check whether the given IP address matches the routing table or not.
 // If there is matched route, this returns that route information that is wrapped by optional.Some.
 // Else, this returns the value of optional.None.
-func (rt *RouteTable) MatchRoute(target net.IP) (optional.Option[Route], error) {
+func (rt *RouteTable) MatchRoute(ctx context.Context, target net.IP) (optional.Option[Route], error) {
 	target, err := adjustIPLength(target)
 	if err != nil {
 		return optional.None[Route](), fmt.Errorf("invalid target IP address on matching a route => %s: %w", target, err)
@@ -276,7 +277,7 @@ func (rt *RouteTable) MatchRoute(target net.IP) (optional.Option[Route], error) 
 // FindRoute attempts to find the route information that is matched with the given IP address.
 // If that route is found this returns true.
 // This function doesn't respect the longest match, so the performance of this function would be better than MatchRoute but this doesn't return the actual detailed information.
-func (rt *RouteTable) FindRoute(target net.IP) (bool, error) {
+func (rt *RouteTable) FindRoute(ctx context.Context, target net.IP) (bool, error) {
 	target, err := adjustIPLength(target)
 	if err != nil {
 		return false, fmt.Errorf("invalid target IP address on finding a route => %s: %w", target, err)
@@ -308,7 +309,7 @@ func (rt *RouteTable) FindRoute(target net.IP) (bool, error) {
 
 // DumpRouteTable dumps the configurations of the routing table.
 // The result value supports String() method so that be able to do stringify.
-func (rt *RouteTable) DumpRouteTable() Routes {
+func (rt *RouteTable) DumpRouteTable(ctx context.Context) Routes {
 	return rt.scanNode(rt.routes)
 }
 

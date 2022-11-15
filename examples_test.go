@@ -1,14 +1,17 @@
 package iprtb
 
 import (
+	"context"
 	"fmt"
 	"net"
 )
 
 func ExampleRouteTable_MatchRoute() {
+	ctx := context.Background()
+
 	rtb := NewRouteTable()
 
-	err := rtb.AddRoute(&Route{
+	err := rtb.AddRoute(ctx, &Route{
 		Destination: &net.IPNet{
 			IP:   net.IPv4(192, 0, 2, 0),
 			Mask: net.IPv4Mask(255, 255, 255, 0),
@@ -21,7 +24,7 @@ func ExampleRouteTable_MatchRoute() {
 		panic(err)
 	}
 
-	err = rtb.AddRoute(&Route{
+	err = rtb.AddRoute(ctx, &Route{
 		Destination: &net.IPNet{
 			IP:   net.IPv4(192, 0, 2, 255),
 			Mask: net.IPv4Mask(255, 255, 255, 255),
@@ -34,14 +37,14 @@ func ExampleRouteTable_MatchRoute() {
 		panic(err)
 	}
 
-	maybeRoute, err := rtb.MatchRoute(net.IPv4(192, 0, 2, 100))
+	maybeRoute, err := rtb.MatchRoute(ctx, net.IPv4(192, 0, 2, 100))
 	if err != nil {
 		panic(err)
 	}
 	fmt.Println(maybeRoute.IsSome())
 	fmt.Println(maybeRoute.Unwrap().String())
 
-	maybeRoute, err = rtb.MatchRoute(net.IPv4(192, 0, 2, 254))
+	maybeRoute, err = rtb.MatchRoute(ctx, net.IPv4(192, 0, 2, 254))
 	if err != nil {
 		panic(err)
 	}
@@ -49,7 +52,7 @@ func ExampleRouteTable_MatchRoute() {
 	fmt.Println(maybeRoute.Unwrap().String())
 
 	// longest match
-	maybeRoute, err = rtb.MatchRoute(net.IPv4(192, 0, 2, 255))
+	maybeRoute, err = rtb.MatchRoute(ctx, net.IPv4(192, 0, 2, 255))
 	if err != nil {
 		panic(err)
 	}
@@ -57,7 +60,7 @@ func ExampleRouteTable_MatchRoute() {
 	fmt.Println(maybeRoute.Unwrap().String())
 
 	// not routes
-	maybeRoute, err = rtb.MatchRoute(net.IPv4(198, 51, 100, 123))
+	maybeRoute, err = rtb.MatchRoute(ctx, net.IPv4(198, 51, 100, 123))
 	if err != nil {
 		panic(err)
 	}
@@ -74,9 +77,11 @@ func ExampleRouteTable_MatchRoute() {
 }
 
 func ExampleRouteTable_FindRoute() {
+	ctx := context.Background()
+
 	rtb := NewRouteTable()
 
-	err := rtb.AddRoute(&Route{
+	err := rtb.AddRoute(ctx, &Route{
 		Destination: &net.IPNet{
 			IP:   net.IPv4(192, 0, 2, 0),
 			Mask: net.IPv4Mask(255, 255, 255, 0),
@@ -89,7 +94,7 @@ func ExampleRouteTable_FindRoute() {
 		panic(err)
 	}
 
-	err = rtb.AddRoute(&Route{
+	err = rtb.AddRoute(ctx, &Route{
 		Destination: &net.IPNet{
 			IP:   net.IPv4(192, 0, 2, 255),
 			Mask: net.IPv4Mask(255, 255, 255, 255),
@@ -102,27 +107,27 @@ func ExampleRouteTable_FindRoute() {
 		panic(err)
 	}
 
-	found, err := rtb.FindRoute(net.IPv4(192, 0, 2, 100))
+	found, err := rtb.FindRoute(ctx, net.IPv4(192, 0, 2, 100))
 	if err != nil {
 		panic(err)
 	}
 	fmt.Println(found)
 
-	found, err = rtb.FindRoute(net.IPv4(192, 0, 2, 254))
+	found, err = rtb.FindRoute(ctx, net.IPv4(192, 0, 2, 254))
 	if err != nil {
 		panic(err)
 	}
 	fmt.Println(found)
 
 	// longest match (but this is early broke)
-	found, err = rtb.FindRoute(net.IPv4(192, 0, 2, 255))
+	found, err = rtb.FindRoute(ctx, net.IPv4(192, 0, 2, 255))
 	if err != nil {
 		panic(err)
 	}
 	fmt.Println(found)
 
 	// not routes
-	found, err = rtb.FindRoute(net.IPv4(198, 51, 100, 123))
+	found, err = rtb.FindRoute(ctx, net.IPv4(198, 51, 100, 123))
 	if err != nil {
 		panic(err)
 	}
@@ -136,13 +141,15 @@ func ExampleRouteTable_FindRoute() {
 }
 
 func ExampleRouteTable_RemoveRoute() {
+	ctx := context.Background()
+
 	rtb := NewRouteTable()
 
 	dst := &net.IPNet{
 		IP:   net.IPv4(192, 0, 2, 0),
 		Mask: net.IPv4Mask(255, 255, 255, 0),
 	}
-	err := rtb.AddRoute(&Route{
+	err := rtb.AddRoute(ctx, &Route{
 		Destination:      dst,
 		Gateway:          net.IPv4(192, 0, 2, 1),
 		NetworkInterface: "ifb0",
@@ -152,19 +159,19 @@ func ExampleRouteTable_RemoveRoute() {
 		panic(err)
 	}
 
-	found, err := rtb.FindRoute(net.IPv4(192, 0, 2, 100))
+	found, err := rtb.FindRoute(ctx, net.IPv4(192, 0, 2, 100))
 	if err != nil {
 		panic(err)
 	}
 	fmt.Println(found)
 
-	err = rtb.RemoveRoute(dst)
+	err = rtb.RemoveRoute(ctx, dst)
 	if err != nil {
 		panic(err)
 	}
 
 	// route has been removed
-	found, err = rtb.FindRoute(net.IPv4(192, 0, 2, 100))
+	found, err = rtb.FindRoute(ctx, net.IPv4(192, 0, 2, 100))
 	if err != nil {
 		panic(err)
 	}
@@ -176,10 +183,12 @@ func ExampleRouteTable_RemoveRoute() {
 }
 
 func ExampleRouteTable_RemoveRouteByLabel() {
+	ctx := context.Background()
+
 	rtb := NewRouteTable()
 
 	label := "__label__"
-	err := rtb.AddRouteWithLabel(label, &Route{
+	err := rtb.AddRouteWithLabel(ctx, label, &Route{
 		Destination: &net.IPNet{
 			IP:   net.IPv4(192, 0, 2, 0),
 			Mask: net.IPv4Mask(255, 255, 255, 0),
@@ -192,19 +201,19 @@ func ExampleRouteTable_RemoveRouteByLabel() {
 		panic(err)
 	}
 
-	found, err := rtb.FindRoute(net.IPv4(192, 0, 2, 100))
+	found, err := rtb.FindRoute(ctx, net.IPv4(192, 0, 2, 100))
 	if err != nil {
 		panic(err)
 	}
 	fmt.Println(found)
 
-	err = rtb.RemoveRouteByLabel(label)
+	err = rtb.RemoveRouteByLabel(ctx, label)
 	if err != nil {
 		panic(err)
 	}
 
 	// route has been removed
-	found, err = rtb.FindRoute(net.IPv4(192, 0, 2, 100))
+	found, err = rtb.FindRoute(ctx, net.IPv4(192, 0, 2, 100))
 	if err != nil {
 		panic(err)
 	}
@@ -216,10 +225,12 @@ func ExampleRouteTable_RemoveRouteByLabel() {
 }
 
 func ExampleRouteTable_UpdateRouteByLabel() {
+	ctx := context.Background()
+
 	rtb := NewRouteTable()
 
 	label := "__label__"
-	err := rtb.AddRouteWithLabel(label, &Route{
+	err := rtb.AddRouteWithLabel(ctx, label, &Route{
 		Destination: &net.IPNet{
 			IP:   net.IPv4(192, 0, 2, 0),
 			Mask: net.IPv4Mask(255, 255, 255, 0),
@@ -232,17 +243,17 @@ func ExampleRouteTable_UpdateRouteByLabel() {
 		panic(err)
 	}
 
-	matched, err := rtb.MatchRoute(net.IPv4(192, 0, 2, 100))
+	matched, err := rtb.MatchRoute(ctx, net.IPv4(192, 0, 2, 100))
 	if err != nil {
 		panic(err)
 	}
 	fmt.Println(matched.Unwrap().String())
 
-	err = rtb.UpdateRouteByLabel(label, net.IPv4(192, 0, 2, 2), "ifb1", 2)
+	err = rtb.UpdateRouteByLabel(ctx, label, net.IPv4(192, 0, 2, 2), "ifb1", 2)
 	if err != nil {
 		panic(err)
 	}
-	matched, err = rtb.MatchRoute(net.IPv4(192, 0, 2, 100))
+	matched, err = rtb.MatchRoute(ctx, net.IPv4(192, 0, 2, 100))
 	if err != nil {
 		panic(err)
 	}
@@ -254,9 +265,11 @@ func ExampleRouteTable_UpdateRouteByLabel() {
 }
 
 func ExampleRouteTable_DumpRouteTable() {
+	ctx := context.Background()
+
 	rtb := NewRouteTable()
 
-	err := rtb.AddRoute(&Route{
+	err := rtb.AddRoute(ctx, &Route{
 		Destination: &net.IPNet{
 			IP:   net.IPv4(192, 0, 2, 0),
 			Mask: net.IPv4Mask(255, 255, 255, 0),
@@ -269,7 +282,7 @@ func ExampleRouteTable_DumpRouteTable() {
 		panic(err)
 	}
 
-	err = rtb.AddRoute(&Route{
+	err = rtb.AddRoute(ctx, &Route{
 		Destination: &net.IPNet{
 			IP:   net.IPv4(192, 0, 2, 255),
 			Mask: net.IPv4Mask(255, 255, 255, 255),
@@ -282,7 +295,7 @@ func ExampleRouteTable_DumpRouteTable() {
 		panic(err)
 	}
 
-	err = rtb.AddRoute(&Route{
+	err = rtb.AddRoute(ctx, &Route{
 		Destination: &net.IPNet{
 			IP:   net.IP{0x20, 0x01, 0x0d, 0xb8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
 			Mask: net.IPMask{0xff, 0xff, 0xff, 0xff, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
@@ -295,7 +308,7 @@ func ExampleRouteTable_DumpRouteTable() {
 		panic(err)
 	}
 
-	err = rtb.AddRoute(&Route{
+	err = rtb.AddRoute(ctx, &Route{
 		Destination: &net.IPNet{
 			IP:   net.IP{0x20, 0x01, 0x0d, 0xb8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff},
 			Mask: net.IPMask{0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff},
@@ -308,7 +321,7 @@ func ExampleRouteTable_DumpRouteTable() {
 		panic(err)
 	}
 
-	dumped := rtb.DumpRouteTable()
+	dumped := rtb.DumpRouteTable(ctx)
 	fmt.Println(dumped)
 
 	// Output:
@@ -319,13 +332,15 @@ func ExampleRouteTable_DumpRouteTable() {
 }
 
 func ExampleRouteTable_ClearRoutes() {
+	ctx := context.Background()
+
 	rtb := NewRouteTable()
 
 	dst1 := &net.IPNet{
 		IP:   net.IPv4(192, 0, 2, 0),
 		Mask: net.IPv4Mask(255, 255, 255, 0),
 	}
-	err := rtb.AddRoute(&Route{
+	err := rtb.AddRoute(ctx, &Route{
 		Destination:      dst1,
 		Gateway:          net.IPv4(192, 0, 2, 1),
 		NetworkInterface: "ifb0",
@@ -339,7 +354,7 @@ func ExampleRouteTable_ClearRoutes() {
 		IP:   net.IPv4(192, 0, 2, 255),
 		Mask: net.IPv4Mask(255, 255, 255, 255),
 	}
-	err = rtb.AddRoute(&Route{
+	err = rtb.AddRoute(ctx, &Route{
 		Destination:      dst2,
 		Gateway:          net.IPv4(192, 0, 2, 255),
 		NetworkInterface: "ifb0",
@@ -349,27 +364,27 @@ func ExampleRouteTable_ClearRoutes() {
 		panic(err)
 	}
 
-	matched, err := rtb.MatchRoute(net.IPv4(192, 0, 2, 100))
+	matched, err := rtb.MatchRoute(ctx, net.IPv4(192, 0, 2, 100))
 	if err != nil {
 		panic(err)
 	}
 	fmt.Println(matched.Unwrap())
 
-	matched, err = rtb.MatchRoute(net.IPv4(192, 0, 2, 255))
+	matched, err = rtb.MatchRoute(ctx, net.IPv4(192, 0, 2, 255))
 	if err != nil {
 		panic(err)
 	}
 	fmt.Println(matched.Unwrap())
 
-	rtb.ClearRoutes()
+	rtb.ClearRoutes(ctx)
 
-	matched, err = rtb.MatchRoute(net.IPv4(192, 0, 2, 100))
+	matched, err = rtb.MatchRoute(ctx, net.IPv4(192, 0, 2, 100))
 	if err != nil {
 		panic(err)
 	}
 	fmt.Println(matched.IsSome())
 
-	matched, err = rtb.MatchRoute(net.IPv4(192, 0, 2, 255))
+	matched, err = rtb.MatchRoute(ctx, net.IPv4(192, 0, 2, 255))
 	if err != nil {
 		panic(err)
 	}

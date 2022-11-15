@@ -1,6 +1,7 @@
 package iprtb
 
 import (
+	"context"
 	"net"
 	"testing"
 
@@ -8,9 +9,11 @@ import (
 )
 
 func TestRouteTable_MatchRoute(t *testing.T) {
+	ctx := context.Background()
+
 	rtb := NewRouteTable()
 	{
-		maybeMatchedRoute, err := rtb.MatchRoute(net.IPv4(192, 0, 2, 100))
+		maybeMatchedRoute, err := rtb.MatchRoute(ctx, net.IPv4(192, 0, 2, 100))
 		assert.NoError(t, err)
 		assert.True(t, maybeMatchedRoute.IsNone())
 	}
@@ -24,7 +27,7 @@ func TestRouteTable_MatchRoute(t *testing.T) {
 		NetworkInterface: "ifb0",
 		Metric:           1,
 	}
-	err := rtb.AddRoute(route1)
+	err := rtb.AddRoute(ctx, route1)
 	assert.NoError(t, err)
 
 	route2 := &Route{
@@ -36,7 +39,7 @@ func TestRouteTable_MatchRoute(t *testing.T) {
 		NetworkInterface: "ifb0",
 		Metric:           1,
 	}
-	err = rtb.AddRoute(route2)
+	err = rtb.AddRoute(ctx, route2)
 	assert.NoError(t, err)
 
 	route3 := &Route{
@@ -48,7 +51,7 @@ func TestRouteTable_MatchRoute(t *testing.T) {
 		NetworkInterface: "ifb0",
 		Metric:           1,
 	}
-	err = rtb.AddRoute(route3)
+	err = rtb.AddRoute(ctx, route3)
 	assert.NoError(t, err)
 
 	route4 := &Route{
@@ -60,18 +63,18 @@ func TestRouteTable_MatchRoute(t *testing.T) {
 		NetworkInterface: "ifb0",
 		Metric:           1,
 	}
-	err = rtb.AddRoute(route4)
+	err = rtb.AddRoute(ctx, route4)
 	assert.NoError(t, err)
 
 	{
-		maybeMatchedRoute, err := rtb.MatchRoute(net.IPv4(192, 0, 2, 100))
+		maybeMatchedRoute, err := rtb.MatchRoute(ctx, net.IPv4(192, 0, 2, 100))
 		assert.NoError(t, err)
 		assert.True(t, maybeMatchedRoute.IsSome())
 		assert.Equal(t, route1.Gateway, maybeMatchedRoute.Unwrap().Gateway)
 	}
 
 	{
-		maybeMatchedRoute, err := rtb.MatchRoute(net.IPv4(192, 0, 2, 254))
+		maybeMatchedRoute, err := rtb.MatchRoute(ctx, net.IPv4(192, 0, 2, 254))
 		assert.NoError(t, err)
 		assert.True(t, maybeMatchedRoute.IsSome())
 		assert.Equal(t, route1.Gateway, maybeMatchedRoute.Unwrap().Gateway)
@@ -79,34 +82,34 @@ func TestRouteTable_MatchRoute(t *testing.T) {
 
 	{
 		// longest match
-		maybeMatchedRoute, err := rtb.MatchRoute(net.IPv4(192, 0, 2, 255))
+		maybeMatchedRoute, err := rtb.MatchRoute(ctx, net.IPv4(192, 0, 2, 255))
 		assert.NoError(t, err)
 		assert.True(t, maybeMatchedRoute.IsSome())
 		assert.Equal(t, route2.Gateway, maybeMatchedRoute.Unwrap().Gateway)
 	}
 
 	{
-		maybeMatchedRoute, err := rtb.MatchRoute(net.IPv4(198, 0, 3, 100))
+		maybeMatchedRoute, err := rtb.MatchRoute(ctx, net.IPv4(198, 0, 3, 100))
 		assert.NoError(t, err)
 		assert.True(t, maybeMatchedRoute.IsNone())
 	}
 
 	{
-		maybeMatchedRoute, err := rtb.MatchRoute(net.IP{0x20, 0x01, 0x0d, 0xb8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02})
+		maybeMatchedRoute, err := rtb.MatchRoute(ctx, net.IP{0x20, 0x01, 0x0d, 0xb8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02})
 		assert.NoError(t, err)
 		assert.True(t, maybeMatchedRoute.IsSome())
 		assert.Equal(t, route3.Gateway, maybeMatchedRoute.Unwrap().Gateway)
 	}
 
 	{
-		maybeMatchedRoute, err := rtb.MatchRoute(net.IP{0x20, 0x01, 0x0d, 0xb8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xfe})
+		maybeMatchedRoute, err := rtb.MatchRoute(ctx, net.IP{0x20, 0x01, 0x0d, 0xb8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xfe})
 		assert.NoError(t, err)
 		assert.True(t, maybeMatchedRoute.IsSome())
 		assert.Equal(t, route3.Gateway, maybeMatchedRoute.Unwrap().Gateway)
 	}
 
 	{
-		maybeMatchedRoute, err := rtb.MatchRoute(net.IP{0x20, 0x01, 0x0d, 0xb8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff})
+		maybeMatchedRoute, err := rtb.MatchRoute(ctx, net.IP{0x20, 0x01, 0x0d, 0xb8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff})
 		assert.NoError(t, err)
 		assert.True(t, maybeMatchedRoute.IsSome())
 		assert.Equal(t, route4.Gateway, maybeMatchedRoute.Unwrap().Gateway)
@@ -114,6 +117,8 @@ func TestRouteTable_MatchRoute(t *testing.T) {
 }
 
 func TestRouteTable_RemoveRoute(t *testing.T) {
+	ctx := context.Background()
+
 	rtb := NewRouteTable()
 
 	route1 := &Route{
@@ -125,7 +130,7 @@ func TestRouteTable_RemoveRoute(t *testing.T) {
 		NetworkInterface: "ifb0",
 		Metric:           1,
 	}
-	err := rtb.AddRoute(route1)
+	err := rtb.AddRoute(ctx, route1)
 	assert.NoError(t, err)
 
 	route2 := &Route{
@@ -137,47 +142,49 @@ func TestRouteTable_RemoveRoute(t *testing.T) {
 		NetworkInterface: "ifb0",
 		Metric:           1,
 	}
-	err = rtb.AddRoute(route2)
+	err = rtb.AddRoute(ctx, route2)
 	assert.NoError(t, err)
 
 	{
-		maybeMatchedRoute, err := rtb.MatchRoute(net.IPv4(192, 0, 2, 100))
+		maybeMatchedRoute, err := rtb.MatchRoute(ctx, net.IPv4(192, 0, 2, 100))
 		assert.NoError(t, err)
 		assert.True(t, maybeMatchedRoute.IsSome())
 		assert.Equal(t, route1.Gateway, maybeMatchedRoute.Unwrap().Gateway)
 	}
 	{
-		maybeMatchedRoute, err := rtb.MatchRoute(net.IPv4(192, 0, 3, 100))
+		maybeMatchedRoute, err := rtb.MatchRoute(ctx, net.IPv4(192, 0, 3, 100))
 		assert.NoError(t, err)
 		assert.True(t, maybeMatchedRoute.IsSome())
 		assert.Equal(t, route2.Gateway, maybeMatchedRoute.Unwrap().Gateway)
 	}
 
-	err = rtb.RemoveRoute(route1.Destination)
+	err = rtb.RemoveRoute(ctx, route1.Destination)
 	assert.NoError(t, err)
-	err = rtb.RemoveRoute(route2.Destination)
+	err = rtb.RemoveRoute(ctx, route2.Destination)
 	assert.NoError(t, err)
 
 	notExistingRoute := &net.IPNet{
 		IP:   net.IPv4(192, 0, 3, 255),
 		Mask: net.IPv4Mask(255, 255, 255, 255),
 	}
-	err = rtb.RemoveRoute(notExistingRoute)
+	err = rtb.RemoveRoute(ctx, notExistingRoute)
 	assert.NoError(t, err)
 
 	{
-		maybeMatchedRoute, err := rtb.MatchRoute(net.IPv4(192, 0, 2, 100))
+		maybeMatchedRoute, err := rtb.MatchRoute(ctx, net.IPv4(192, 0, 2, 100))
 		assert.NoError(t, err)
 		assert.True(t, maybeMatchedRoute.IsNone())
 	}
 	{
-		maybeMatchedRoute, err := rtb.MatchRoute(net.IPv4(192, 0, 3, 100))
+		maybeMatchedRoute, err := rtb.MatchRoute(ctx, net.IPv4(192, 0, 3, 100))
 		assert.NoError(t, err)
 		assert.True(t, maybeMatchedRoute.IsNone())
 	}
 }
 
 func TestRouteTable_MatchRoute_DefaultRoute(t *testing.T) {
+	ctx := context.Background()
+
 	rtb := NewRouteTable()
 
 	route1 := &Route{
@@ -189,7 +196,7 @@ func TestRouteTable_MatchRoute_DefaultRoute(t *testing.T) {
 		NetworkInterface: "ifb0",
 		Metric:           1,
 	}
-	err := rtb.AddRoute(route1)
+	err := rtb.AddRoute(ctx, route1)
 	assert.NoError(t, err)
 
 	route2 := &Route{
@@ -201,18 +208,18 @@ func TestRouteTable_MatchRoute_DefaultRoute(t *testing.T) {
 		NetworkInterface: "ifb0",
 		Metric:           1,
 	}
-	err = rtb.AddRoute(route2)
+	err = rtb.AddRoute(ctx, route2)
 	assert.NoError(t, err)
 
 	{
-		maybeMatchedRoute, err := rtb.MatchRoute(net.IPv4(192, 0, 2, 100))
+		maybeMatchedRoute, err := rtb.MatchRoute(ctx, net.IPv4(192, 0, 2, 100))
 		assert.NoError(t, err)
 		assert.True(t, maybeMatchedRoute.IsSome())
 		assert.Equal(t, route1.Gateway, maybeMatchedRoute.Unwrap().Gateway)
 	}
 
 	{
-		maybeMatchedRoute, err := rtb.MatchRoute(net.IPv4(192, 0, 3, 0))
+		maybeMatchedRoute, err := rtb.MatchRoute(ctx, net.IPv4(192, 0, 3, 0))
 		assert.NoError(t, err)
 		assert.True(t, maybeMatchedRoute.IsSome())
 		assert.Equal(t, route2.Gateway, maybeMatchedRoute.Unwrap().Gateway)
@@ -220,6 +227,8 @@ func TestRouteTable_MatchRoute_DefaultRoute(t *testing.T) {
 }
 
 func TestRouteTable_RemoveRoute_DefaultRoute(t *testing.T) {
+	ctx := context.Background()
+
 	rtb := NewRouteTable()
 
 	var route = &Route{
@@ -231,30 +240,32 @@ func TestRouteTable_RemoveRoute_DefaultRoute(t *testing.T) {
 		NetworkInterface: "ifb0",
 		Metric:           1,
 	}
-	err := rtb.AddRoute(route)
+	err := rtb.AddRoute(ctx, route)
 	assert.NoError(t, err)
 
 	{
-		maybeMatchedRoute, err := rtb.MatchRoute(net.IPv4(192, 0, 3, 0))
+		maybeMatchedRoute, err := rtb.MatchRoute(ctx, net.IPv4(192, 0, 3, 0))
 		assert.NoError(t, err)
 		assert.True(t, maybeMatchedRoute.IsSome())
 		assert.Equal(t, route.Gateway, maybeMatchedRoute.Unwrap().Gateway)
 	}
 
-	err = rtb.RemoveRoute(&net.IPNet{
+	err = rtb.RemoveRoute(ctx, &net.IPNet{
 		IP:   net.IPv4(0, 0, 0, 0),
 		Mask: net.IPv4Mask(0, 0, 0, 0),
 	})
 	assert.NoError(t, err)
 
 	{
-		maybeMatchedRoute, err := rtb.MatchRoute(net.IPv4(192, 0, 3, 0))
+		maybeMatchedRoute, err := rtb.MatchRoute(ctx, net.IPv4(192, 0, 3, 0))
 		assert.NoError(t, err)
 		assert.True(t, maybeMatchedRoute.IsNone())
 	}
 }
 
 func TestRouteTable_AddRoute_WithInvalidIPv6(t *testing.T) {
+	ctx := context.Background()
+
 	rtb := NewRouteTable()
 
 	route := &Route{
@@ -266,21 +277,25 @@ func TestRouteTable_AddRoute_WithInvalidIPv6(t *testing.T) {
 		NetworkInterface: "ifb0",
 		Metric:           1,
 	}
-	err := rtb.AddRoute(route)
+	err := rtb.AddRoute(ctx, route)
 	assert.ErrorIs(t, err, ErrInvalidIPv6Length)
 }
 
 func TestRouteTable_MatchRoute_WithInvalidIPv6(t *testing.T) {
+	ctx := context.Background()
+
 	rtb := NewRouteTable()
 
-	_, err := rtb.MatchRoute(net.IP{0xff, 0xff, 0xff, 0xff, 0xff})
+	_, err := rtb.MatchRoute(ctx, net.IP{0xff, 0xff, 0xff, 0xff, 0xff})
 	assert.ErrorIs(t, err, ErrInvalidIPv6Length)
 }
 
 func TestRouteTable_RemoveRoute_WithInvalidIPv6(t *testing.T) {
+	ctx := context.Background()
+
 	rtb := NewRouteTable()
 
-	err := rtb.RemoveRoute(&net.IPNet{
+	err := rtb.RemoveRoute(ctx, &net.IPNet{
 		IP:   net.IP{0xff, 0xff, 0xff, 0xff, 0xff},
 		Mask: net.IPMask{0xff, 0xff, 0xff, 0xff, 0xff},
 	})
@@ -288,6 +303,8 @@ func TestRouteTable_RemoveRoute_WithInvalidIPv6(t *testing.T) {
 }
 
 func TestRouteTable_AddRoute_ForUpdate(t *testing.T) {
+	ctx := context.Background()
+
 	rtb := NewRouteTable()
 
 	dst := &net.IPNet{
@@ -301,11 +318,11 @@ func TestRouteTable_AddRoute_ForUpdate(t *testing.T) {
 		NetworkInterface: "ifb0",
 		Metric:           1,
 	}
-	err := rtb.AddRoute(route1)
+	err := rtb.AddRoute(ctx, route1)
 	assert.NoError(t, err)
 
 	{
-		maybeMatchedRoute, err := rtb.MatchRoute(net.IPv4(192, 0, 2, 100))
+		maybeMatchedRoute, err := rtb.MatchRoute(ctx, net.IPv4(192, 0, 2, 100))
 		assert.NoError(t, err)
 		assert.True(t, maybeMatchedRoute.IsSome())
 		assert.Equal(t, route1.Gateway, maybeMatchedRoute.Unwrap().Gateway)
@@ -317,11 +334,11 @@ func TestRouteTable_AddRoute_ForUpdate(t *testing.T) {
 		NetworkInterface: "ifb0",
 		Metric:           1,
 	}
-	err = rtb.AddRoute(route2)
+	err = rtb.AddRoute(ctx, route2)
 	assert.NoError(t, err)
 
 	{
-		maybeMatchedRoute, err := rtb.MatchRoute(net.IPv4(192, 0, 2, 100))
+		maybeMatchedRoute, err := rtb.MatchRoute(ctx, net.IPv4(192, 0, 2, 100))
 		assert.NoError(t, err)
 		assert.True(t, maybeMatchedRoute.IsSome())
 		assert.Equal(t, route2.Gateway, maybeMatchedRoute.Unwrap().Gateway)
@@ -329,14 +346,16 @@ func TestRouteTable_AddRoute_ForUpdate(t *testing.T) {
 }
 
 func TestRouteTable_FindRoute(t *testing.T) {
+	ctx := context.Background()
+
 	rtb := NewRouteTable()
 	{
-		found, err := rtb.FindRoute(net.IPv4(192, 0, 2, 100))
+		found, err := rtb.FindRoute(ctx, net.IPv4(192, 0, 2, 100))
 		assert.NoError(t, err)
 		assert.False(t, found)
 	}
 	{
-		found, err := rtb.FindRoute(net.IPv4(10, 0, 2, 100))
+		found, err := rtb.FindRoute(ctx, net.IPv4(10, 0, 2, 100))
 		assert.NoError(t, err)
 		assert.False(t, found)
 	}
@@ -350,7 +369,7 @@ func TestRouteTable_FindRoute(t *testing.T) {
 		NetworkInterface: "ifb0",
 		Metric:           1,
 	}
-	err := rtb.AddRoute(route1)
+	err := rtb.AddRoute(ctx, route1)
 	assert.NoError(t, err)
 
 	route2 := &Route{
@@ -362,7 +381,7 @@ func TestRouteTable_FindRoute(t *testing.T) {
 		NetworkInterface: "ifb0",
 		Metric:           1,
 	}
-	err = rtb.AddRoute(route2)
+	err = rtb.AddRoute(ctx, route2)
 	assert.NoError(t, err)
 
 	route3 := &Route{
@@ -374,7 +393,7 @@ func TestRouteTable_FindRoute(t *testing.T) {
 		NetworkInterface: "ifb0",
 		Metric:           1,
 	}
-	err = rtb.AddRoute(route3)
+	err = rtb.AddRoute(ctx, route3)
 	assert.NoError(t, err)
 
 	route4 := &Route{
@@ -386,54 +405,56 @@ func TestRouteTable_FindRoute(t *testing.T) {
 		NetworkInterface: "ifb0",
 		Metric:           1,
 	}
-	err = rtb.AddRoute(route4)
+	err = rtb.AddRoute(ctx, route4)
 	assert.NoError(t, err)
 
 	{
-		found, err := rtb.FindRoute(net.IPv4(192, 0, 2, 100))
+		found, err := rtb.FindRoute(ctx, net.IPv4(192, 0, 2, 100))
 		assert.NoError(t, err)
 		assert.True(t, found)
 	}
 
 	{
-		found, err := rtb.FindRoute(net.IPv4(192, 0, 2, 254))
+		found, err := rtb.FindRoute(ctx, net.IPv4(192, 0, 2, 254))
 		assert.NoError(t, err)
 		assert.True(t, found)
 	}
 
 	{
 		// longest match (but this should be early break)
-		found, err := rtb.FindRoute(net.IPv4(192, 0, 2, 255))
+		found, err := rtb.FindRoute(ctx, net.IPv4(192, 0, 2, 255))
 		assert.NoError(t, err)
 		assert.True(t, found)
 	}
 
 	{
-		found, err := rtb.FindRoute(net.IPv4(192, 0, 3, 0))
+		found, err := rtb.FindRoute(ctx, net.IPv4(192, 0, 3, 0))
 		assert.NoError(t, err)
 		assert.False(t, found)
 	}
 
 	{
-		found, err := rtb.FindRoute(net.IP{0x20, 0x01, 0x0d, 0xb8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02})
+		found, err := rtb.FindRoute(ctx, net.IP{0x20, 0x01, 0x0d, 0xb8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02})
 		assert.NoError(t, err)
 		assert.True(t, found)
 	}
 
 	{
-		found, err := rtb.FindRoute(net.IP{0x20, 0x01, 0x0d, 0xb8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xfe})
+		found, err := rtb.FindRoute(ctx, net.IP{0x20, 0x01, 0x0d, 0xb8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xfe})
 		assert.NoError(t, err)
 		assert.True(t, found)
 	}
 
 	{
-		found, err := rtb.FindRoute(net.IP{0x20, 0x01, 0x0d, 0xb8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff})
+		found, err := rtb.FindRoute(ctx, net.IP{0x20, 0x01, 0x0d, 0xb8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff})
 		assert.NoError(t, err)
 		assert.True(t, found)
 	}
 }
 
 func TestRouteTable_FindRoute_DefaultRoute(t *testing.T) {
+	ctx := context.Background()
+
 	rtb := NewRouteTable()
 
 	route := &Route{
@@ -445,23 +466,25 @@ func TestRouteTable_FindRoute_DefaultRoute(t *testing.T) {
 		NetworkInterface: "ifb0",
 		Metric:           1,
 	}
-	err := rtb.AddRoute(route)
+	err := rtb.AddRoute(ctx, route)
 	assert.NoError(t, err)
 
 	{
-		found, err := rtb.FindRoute(net.IPv4(192, 0, 2, 100))
+		found, err := rtb.FindRoute(ctx, net.IPv4(192, 0, 2, 100))
 		assert.NoError(t, err)
 		assert.True(t, found)
 	}
 
 	{
-		found, err := rtb.FindRoute(net.IPv4(192, 0, 3, 0))
+		found, err := rtb.FindRoute(ctx, net.IPv4(192, 0, 3, 0))
 		assert.NoError(t, err)
 		assert.True(t, found)
 	}
 }
 
 func TestRouteTable_FindRoute_ExactMatch(t *testing.T) {
+	ctx := context.Background()
+
 	rtb := NewRouteTable()
 
 	route := &Route{
@@ -473,24 +496,28 @@ func TestRouteTable_FindRoute_ExactMatch(t *testing.T) {
 		NetworkInterface: "ifb0",
 		Metric:           1,
 	}
-	err := rtb.AddRoute(route)
+	err := rtb.AddRoute(ctx, route)
 	assert.NoError(t, err)
 
 	{
-		found, err := rtb.FindRoute(net.IPv4(192, 0, 2, 123))
+		found, err := rtb.FindRoute(ctx, net.IPv4(192, 0, 2, 123))
 		assert.NoError(t, err)
 		assert.True(t, found)
 	}
 }
 
 func TestRouteTable_FindRoute_WithInvalidIpv6(t *testing.T) {
+	ctx := context.Background()
+
 	rtb := NewRouteTable()
 
-	_, err := rtb.FindRoute(net.IP{0xff, 0xff, 0xff, 0xff, 0xff})
+	_, err := rtb.FindRoute(ctx, net.IP{0xff, 0xff, 0xff, 0xff, 0xff})
 	assert.ErrorIs(t, err, ErrInvalidIPv6Length)
 }
 
 func TestRouteTable_WithLabel(t *testing.T) {
+	ctx := context.Background()
+
 	label := "label-1"
 
 	rtb := NewRouteTable()
@@ -504,10 +531,10 @@ func TestRouteTable_WithLabel(t *testing.T) {
 		NetworkInterface: "ifb0",
 		Metric:           1,
 	}
-	err := rtb.AddRouteWithLabel(label, route)
+	err := rtb.AddRouteWithLabel(ctx, label, route)
 	assert.NoError(t, err)
 	{
-		maybeMatchedRoute, err := rtb.MatchRoute(net.IPv4(192, 0, 2, 100))
+		maybeMatchedRoute, err := rtb.MatchRoute(ctx, net.IPv4(192, 0, 2, 100))
 		assert.NoError(t, err)
 		assert.True(t, maybeMatchedRoute.IsSome())
 		assert.Equal(t, net.IPv4(192, 0, 2, 1), maybeMatchedRoute.Unwrap().Gateway)
@@ -515,19 +542,19 @@ func TestRouteTable_WithLabel(t *testing.T) {
 		assert.NotEmpty(t, rtb.destination2Label)
 	}
 
-	err = rtb.UpdateRouteByLabel(label, net.IPv4(192, 0, 2, 2), "ifb0", 1)
+	err = rtb.UpdateRouteByLabel(ctx, label, net.IPv4(192, 0, 2, 2), "ifb0", 1)
 	assert.NoError(t, err)
 	{
-		maybeMatchedRoute, err := rtb.MatchRoute(net.IPv4(192, 0, 2, 100))
+		maybeMatchedRoute, err := rtb.MatchRoute(ctx, net.IPv4(192, 0, 2, 100))
 		assert.NoError(t, err)
 		assert.True(t, maybeMatchedRoute.IsSome())
 		assert.Equal(t, net.IPv4(192, 0, 2, 2), maybeMatchedRoute.Unwrap().Gateway)
 	}
 
-	err = rtb.RemoveRouteByLabel(label)
+	err = rtb.RemoveRouteByLabel(ctx, label)
 	assert.NoError(t, err)
 	{
-		maybeMatchedRoute, err := rtb.MatchRoute(net.IPv4(192, 0, 2, 100))
+		maybeMatchedRoute, err := rtb.MatchRoute(ctx, net.IPv4(192, 0, 2, 100))
 		assert.NoError(t, err)
 		assert.False(t, maybeMatchedRoute.IsSome())
 		assert.Empty(t, rtb.label2Destination)
@@ -536,6 +563,8 @@ func TestRouteTable_WithLabel(t *testing.T) {
 }
 
 func TestRouteTable_WithNotExistedLabel(t *testing.T) {
+	ctx := context.Background()
+
 	label := "label-1"
 
 	rtb := NewRouteTable()
@@ -549,30 +578,30 @@ func TestRouteTable_WithNotExistedLabel(t *testing.T) {
 		NetworkInterface: "ifb0",
 		Metric:           1,
 	}
-	err := rtb.AddRouteWithLabel(label, route)
+	err := rtb.AddRouteWithLabel(ctx, label, route)
 	assert.NoError(t, err)
 	{
-		maybeMatchedRoute, err := rtb.MatchRoute(net.IPv4(192, 0, 2, 100))
+		maybeMatchedRoute, err := rtb.MatchRoute(ctx, net.IPv4(192, 0, 2, 100))
 		assert.NoError(t, err)
 		assert.True(t, maybeMatchedRoute.IsSome())
 		assert.Equal(t, route.Gateway, maybeMatchedRoute.Unwrap().Gateway)
 	}
 
-	err = rtb.UpdateRouteByLabel("__invalid_label__", net.IPv4(192, 0, 2, 2), "ifb0", 1)
+	err = rtb.UpdateRouteByLabel(ctx, "__invalid_label__", net.IPv4(192, 0, 2, 2), "ifb0", 1)
 	assert.NoError(t, err)
 	{
 		// should not be affected
-		maybeMatchedRoute, err := rtb.MatchRoute(net.IPv4(192, 0, 2, 100))
+		maybeMatchedRoute, err := rtb.MatchRoute(ctx, net.IPv4(192, 0, 2, 100))
 		assert.NoError(t, err)
 		assert.True(t, maybeMatchedRoute.IsSome())
 		assert.Equal(t, route.Gateway, maybeMatchedRoute.Unwrap().Gateway)
 	}
 
-	err = rtb.RemoveRouteByLabel("__invalid_label__")
+	err = rtb.RemoveRouteByLabel(ctx, "__invalid_label__")
 	assert.NoError(t, err)
 	{
 		// should not be affected
-		maybeMatchedRoute, err := rtb.MatchRoute(net.IPv4(192, 0, 2, 100))
+		maybeMatchedRoute, err := rtb.MatchRoute(ctx, net.IPv4(192, 0, 2, 100))
 		assert.NoError(t, err)
 		assert.True(t, maybeMatchedRoute.IsSome())
 		assert.Equal(t, route.Gateway, maybeMatchedRoute.Unwrap().Gateway)
@@ -580,6 +609,8 @@ func TestRouteTable_WithNotExistedLabel(t *testing.T) {
 }
 
 func TestRouteTable_AddRouteWithLabel_WithInvalidIpv6(t *testing.T) {
+	ctx := context.Background()
+
 	rtb := NewRouteTable()
 
 	route := &Route{
@@ -591,11 +622,13 @@ func TestRouteTable_AddRouteWithLabel_WithInvalidIpv6(t *testing.T) {
 		NetworkInterface: "ifb0",
 		Metric:           1,
 	}
-	err := rtb.AddRouteWithLabel("__label__", route)
+	err := rtb.AddRouteWithLabel(ctx, "__label__", route)
 	assert.ErrorIs(t, err, ErrInvalidIPv6Length)
 }
 
 func TestRouteTable_RemoveRouteByLabel_WithInvalidIpv6(t *testing.T) {
+	ctx := context.Background()
+
 	rtb := NewRouteTable()
 
 	label := "__label__"
@@ -604,13 +637,15 @@ func TestRouteTable_RemoveRouteByLabel_WithInvalidIpv6(t *testing.T) {
 		Mask: net.IPMask{0xff, 0xff, 0xff, 0xff, 0xff},
 	}
 
-	err := rtb.RemoveRouteByLabel(label)
+	err := rtb.RemoveRouteByLabel(ctx, label)
 	assert.ErrorIs(t, err, ErrInvalidIPv6Length)
 }
 
 func TestRouteTable_DumpRouteTable(t *testing.T) {
+	ctx := context.Background()
+
 	rtb := NewRouteTable()
-	dumped := rtb.DumpRouteTable()
+	dumped := rtb.DumpRouteTable(ctx)
 	assert.Empty(t, dumped)
 	assert.Empty(t, dumped.String())
 
@@ -626,7 +661,7 @@ func TestRouteTable_DumpRouteTable(t *testing.T) {
 		NetworkInterface: nwInterface,
 		Metric:           metric,
 	}
-	err := rtb.AddRoute(route1)
+	err := rtb.AddRoute(ctx, route1)
 	assert.NoError(t, err)
 
 	route2 := &Route{
@@ -638,7 +673,7 @@ func TestRouteTable_DumpRouteTable(t *testing.T) {
 		NetworkInterface: nwInterface,
 		Metric:           metric,
 	}
-	err = rtb.AddRoute(route2)
+	err = rtb.AddRoute(ctx, route2)
 	assert.NoError(t, err)
 
 	route3 := &Route{
@@ -650,7 +685,7 @@ func TestRouteTable_DumpRouteTable(t *testing.T) {
 		NetworkInterface: nwInterface,
 		Metric:           metric,
 	}
-	err = rtb.AddRoute(route3)
+	err = rtb.AddRoute(ctx, route3)
 	assert.NoError(t, err)
 
 	route4 := &Route{
@@ -662,10 +697,10 @@ func TestRouteTable_DumpRouteTable(t *testing.T) {
 		NetworkInterface: nwInterface,
 		Metric:           metric,
 	}
-	err = rtb.AddRoute(route4)
+	err = rtb.AddRoute(ctx, route4)
 	assert.NoError(t, err)
 
-	dumped = rtb.DumpRouteTable()
+	dumped = rtb.DumpRouteTable(ctx)
 	assert.Len(t, dumped, 4)
 	assert.Contains(t, dumped, route1)
 	assert.Contains(t, dumped, route2)
@@ -679,6 +714,8 @@ func TestRouteTable_DumpRouteTable(t *testing.T) {
 }
 
 func TestRouteTable_ClearRoutes(t *testing.T) {
+	ctx := context.Background()
+
 	rtb := NewRouteTable()
 
 	route1 := &Route{
@@ -690,7 +727,7 @@ func TestRouteTable_ClearRoutes(t *testing.T) {
 		NetworkInterface: "ifb0",
 		Metric:           1,
 	}
-	err := rtb.AddRouteWithLabel("__label1__", route1)
+	err := rtb.AddRouteWithLabel(ctx, "__label1__", route1)
 	assert.NoError(t, err)
 
 	route2 := &Route{
@@ -702,17 +739,17 @@ func TestRouteTable_ClearRoutes(t *testing.T) {
 		NetworkInterface: "ifb0",
 		Metric:           1,
 	}
-	err = rtb.AddRouteWithLabel("__label2__", route2)
+	err = rtb.AddRouteWithLabel(ctx, "__label2__", route2)
 	assert.NoError(t, err)
 
 	{
-		maybeMatchedRoute, err := rtb.MatchRoute(net.IPv4(192, 0, 2, 100))
+		maybeMatchedRoute, err := rtb.MatchRoute(ctx, net.IPv4(192, 0, 2, 100))
 		assert.NoError(t, err)
 		assert.True(t, maybeMatchedRoute.IsSome())
 		assert.Equal(t, route1.Gateway, maybeMatchedRoute.Unwrap().Gateway)
 	}
 	{
-		maybeMatchedRoute, err := rtb.MatchRoute(net.IPv4(192, 0, 3, 100))
+		maybeMatchedRoute, err := rtb.MatchRoute(ctx, net.IPv4(192, 0, 3, 100))
 		assert.NoError(t, err)
 		assert.True(t, maybeMatchedRoute.IsSome())
 		assert.Equal(t, route2.Gateway, maybeMatchedRoute.Unwrap().Gateway)
@@ -720,14 +757,14 @@ func TestRouteTable_ClearRoutes(t *testing.T) {
 	assert.Len(t, rtb.label2Destination, 2)
 	assert.Len(t, rtb.destination2Label, 2)
 
-	rtb.ClearRoutes()
+	rtb.ClearRoutes(ctx)
 	{
-		maybeMatchedRoute, err := rtb.MatchRoute(net.IPv4(192, 0, 2, 100))
+		maybeMatchedRoute, err := rtb.MatchRoute(ctx, net.IPv4(192, 0, 2, 100))
 		assert.NoError(t, err)
 		assert.True(t, maybeMatchedRoute.IsNone())
 	}
 	{
-		maybeMatchedRoute, err := rtb.MatchRoute(net.IPv4(192, 0, 3, 100))
+		maybeMatchedRoute, err := rtb.MatchRoute(ctx, net.IPv4(192, 0, 3, 100))
 		assert.NoError(t, err)
 		assert.True(t, maybeMatchedRoute.IsNone())
 	}
@@ -736,13 +773,15 @@ func TestRouteTable_ClearRoutes(t *testing.T) {
 }
 
 func TestRouteTable_RemoveRoute_DestroysLabelMapping(t *testing.T) {
+	ctx := context.Background()
+
 	rtb := NewRouteTable()
 
 	dst1 := &net.IPNet{
 		IP:   net.IPv4(192, 0, 2, 0),
 		Mask: net.IPv4Mask(255, 255, 255, 0),
 	}
-	err := rtb.AddRouteWithLabel("__label1__", &Route{
+	err := rtb.AddRouteWithLabel(ctx, "__label1__", &Route{
 		Destination:      dst1,
 		Gateway:          net.IPv4(192, 0, 2, 1),
 		NetworkInterface: "ifb0",
@@ -754,7 +793,7 @@ func TestRouteTable_RemoveRoute_DestroysLabelMapping(t *testing.T) {
 		IP:   net.IPv4(192, 0, 2, 255),
 		Mask: net.IPv4Mask(255, 255, 255, 0),
 	}
-	err = rtb.AddRouteWithLabel("__label2__", &Route{
+	err = rtb.AddRouteWithLabel(ctx, "__label2__", &Route{
 		Destination:      dst2,
 		Gateway:          net.IPv4(192, 0, 2, 255),
 		NetworkInterface: "ifb0",
@@ -765,14 +804,14 @@ func TestRouteTable_RemoveRoute_DestroysLabelMapping(t *testing.T) {
 	assert.Len(t, rtb.label2Destination, 2)
 	assert.Len(t, rtb.destination2Label, 2)
 
-	err = rtb.RemoveRoute(dst1)
+	err = rtb.RemoveRoute(ctx, dst1)
 	assert.NoError(t, err)
 
 	// should remove an internal mapping for a label
 	assert.Len(t, rtb.label2Destination, 1)
 	assert.Len(t, rtb.destination2Label, 1)
 
-	err = rtb.RemoveRoute(dst2)
+	err = rtb.RemoveRoute(ctx, dst2)
 	assert.NoError(t, err)
 
 	// should remove an internal mapping for a label (i.e. removes all)
@@ -781,9 +820,11 @@ func TestRouteTable_RemoveRoute_DestroysLabelMapping(t *testing.T) {
 }
 
 func TestRouteTable_RemoveRoute_DoNotDeleteWhenTheTargetDoesNotTerminate(t *testing.T) {
+	ctx := context.Background()
+
 	rtb := NewRouteTable()
 
-	err := rtb.AddRouteWithLabel("__label1__", &Route{
+	err := rtb.AddRouteWithLabel(ctx, "__label1__", &Route{
 		Destination: &net.IPNet{
 			IP:   net.IPv4(192, 0, 2, 0),
 			Mask: net.IPv4Mask(255, 255, 255, 0),
@@ -794,20 +835,22 @@ func TestRouteTable_RemoveRoute_DoNotDeleteWhenTheTargetDoesNotTerminate(t *test
 	})
 	assert.NoError(t, err)
 
-	found, _ := rtb.FindRoute(net.IP{192, 0, 2, 100})
+	found, _ := rtb.FindRoute(ctx, net.IP{192, 0, 2, 100})
 	assert.True(t, found)
 
-	err = rtb.RemoveRoute(&net.IPNet{
+	err = rtb.RemoveRoute(ctx, &net.IPNet{
 		IP:   net.IPv4(192, 0, 2, 0),
 		Mask: net.IPv4Mask(255, 255, 254, 0),
 	})
 	assert.NoError(t, err)
 
-	found, _ = rtb.FindRoute(net.IP{192, 0, 2, 100})
+	found, _ = rtb.FindRoute(ctx, net.IP{192, 0, 2, 100})
 	assert.True(t, found)
 }
 
 func TestRouteTable_RemoveRoute_WithNotTerminatedBranchPruning(t *testing.T) {
+	ctx := context.Background()
+
 	rtb := NewRouteTable()
 
 	/*
@@ -858,7 +901,7 @@ func TestRouteTable_RemoveRoute_WithNotTerminatedBranchPruning(t *testing.T) {
 	 */
 
 	label1 := "label1"
-	err := rtb.AddRouteWithLabel(label1, &Route{
+	err := rtb.AddRouteWithLabel(ctx, label1, &Route{
 		Destination: &net.IPNet{
 			IP:   net.IPv4(192, 0, 2, 0),
 			Mask: net.IPv4Mask(255, 255, 255, 0),
@@ -870,7 +913,7 @@ func TestRouteTable_RemoveRoute_WithNotTerminatedBranchPruning(t *testing.T) {
 	assert.NoError(t, err)
 
 	label2 := "label2"
-	err = rtb.AddRouteWithLabel(label2, &Route{
+	err = rtb.AddRouteWithLabel(ctx, label2, &Route{
 		Destination: &net.IPNet{
 			IP:   net.IPv4(192, 0, 0, 0),
 			Mask: net.IPv4Mask(255, 255, 252, 0),
@@ -882,7 +925,7 @@ func TestRouteTable_RemoveRoute_WithNotTerminatedBranchPruning(t *testing.T) {
 	assert.NoError(t, err)
 
 	label3 := "label3"
-	err = rtb.AddRouteWithLabel(label3, &Route{
+	err = rtb.AddRouteWithLabel(ctx, label3, &Route{
 		Destination: &net.IPNet{
 			IP:   net.IPv4(192, 0, 0, 0),
 			Mask: net.IPv4Mask(255, 255, 0, 0),
@@ -894,7 +937,7 @@ func TestRouteTable_RemoveRoute_WithNotTerminatedBranchPruning(t *testing.T) {
 	assert.NoError(t, err)
 
 	label4 := "label4"
-	err = rtb.AddRouteWithLabel(label4, &Route{
+	err = rtb.AddRouteWithLabel(ctx, label4, &Route{
 		Destination: &net.IPNet{
 			IP:   net.IPv4(192, 0, 128, 0),
 			Mask: net.IPv4Mask(255, 255, 128, 0),
@@ -906,12 +949,12 @@ func TestRouteTable_RemoveRoute_WithNotTerminatedBranchPruning(t *testing.T) {
 	assert.NoError(t, err)
 
 	// attempt to remove by not terminated node, but it should do nothing
-	err = rtb.RemoveRoute(&net.IPNet{
+	err = rtb.RemoveRoute(ctx, &net.IPNet{
 		IP:   net.IPv4(192, 0, 2, 0),
 		Mask: net.IPv4Mask(255, 255, 254, 0),
 	})
 	assert.NoError(t, err)
-	found, _ := rtb.FindRoute(net.IP{192, 0, 2, 100})
+	found, _ := rtb.FindRoute(ctx, net.IP{192, 0, 2, 100})
 	assert.True(t, found)
 
 	n := rtb.routes.oneBitNode.oneBitNode.zeroBitNode.zeroBitNode.zeroBitNode.zeroBitNode.zeroBitNode.zeroBitNode.
@@ -921,10 +964,10 @@ func TestRouteTable_RemoveRoute_WithNotTerminatedBranchPruning(t *testing.T) {
 	assert.NotNil(t, n.route)
 	assert.Nil(t, n.zeroBitNode)
 	assert.Nil(t, n.oneBitNode)
-	maybeMatched, _ := rtb.MatchRoute(net.IP{192, 0, 2, 100})
+	maybeMatched, _ := rtb.MatchRoute(ctx, net.IP{192, 0, 2, 100})
 	assert.EqualValues(t, "ifb1", maybeMatched.Unwrap().NetworkInterface)
 
-	err = rtb.RemoveRouteByLabel(label1)
+	err = rtb.RemoveRouteByLabel(ctx, label1)
 	assert.NoError(t, err)
 	assert.Nil(t,
 		rtb.routes.oneBitNode.oneBitNode.zeroBitNode.zeroBitNode.zeroBitNode.zeroBitNode.zeroBitNode.zeroBitNode.
@@ -939,10 +982,10 @@ func TestRouteTable_RemoveRoute_WithNotTerminatedBranchPruning(t *testing.T) {
 	assert.NotNil(t, n.route)
 	assert.Nil(t, n.zeroBitNode)
 	assert.Nil(t, n.oneBitNode)
-	maybeMatched, _ = rtb.MatchRoute(net.IP{192, 0, 2, 100})
+	maybeMatched, _ = rtb.MatchRoute(ctx, net.IP{192, 0, 2, 100})
 	assert.EqualValues(t, "ifb2", maybeMatched.Unwrap().NetworkInterface)
 
-	err = rtb.RemoveRouteByLabel(label2)
+	err = rtb.RemoveRouteByLabel(ctx, label2)
 	assert.Nil(t,
 		rtb.routes.oneBitNode.oneBitNode.zeroBitNode.zeroBitNode.zeroBitNode.zeroBitNode.zeroBitNode.zeroBitNode.
 			zeroBitNode.zeroBitNode.zeroBitNode.zeroBitNode.zeroBitNode.zeroBitNode.zeroBitNode.zeroBitNode.
@@ -956,10 +999,10 @@ func TestRouteTable_RemoveRoute_WithNotTerminatedBranchPruning(t *testing.T) {
 	assert.NotNil(t, n.route)
 	assert.Nil(t, n.zeroBitNode)
 	assert.NotNil(t, n.oneBitNode)
-	maybeMatched, _ = rtb.MatchRoute(net.IP{192, 0, 2, 100})
+	maybeMatched, _ = rtb.MatchRoute(ctx, net.IP{192, 0, 2, 100})
 	assert.EqualValues(t, "ifb3", maybeMatched.Unwrap().NetworkInterface)
 
-	err = rtb.RemoveRouteByLabel(label3)
+	err = rtb.RemoveRouteByLabel(ctx, label3)
 	assert.NoError(t, err)
 	n = rtb.routes.oneBitNode.oneBitNode.zeroBitNode.zeroBitNode.zeroBitNode.zeroBitNode.zeroBitNode.zeroBitNode.
 		zeroBitNode.zeroBitNode.zeroBitNode.zeroBitNode.zeroBitNode.zeroBitNode.zeroBitNode.zeroBitNode
@@ -967,18 +1010,18 @@ func TestRouteTable_RemoveRoute_WithNotTerminatedBranchPruning(t *testing.T) {
 	assert.Nil(t, n.route)
 	assert.Nil(t, n.zeroBitNode)
 	assert.NotNil(t, n.oneBitNode)
-	found, _ = rtb.FindRoute(net.IP{192, 0, 2, 100})
+	found, _ = rtb.FindRoute(ctx, net.IP{192, 0, 2, 100})
 	assert.False(t, found)
-	maybeMatched, _ = rtb.MatchRoute(net.IP{192, 0, 128, 1})
+	maybeMatched, _ = rtb.MatchRoute(ctx, net.IP{192, 0, 128, 1})
 	assert.EqualValues(t, "ifb4", maybeMatched.Unwrap().NetworkInterface)
 
-	err = rtb.RemoveRouteByLabel(label4)
+	err = rtb.RemoveRouteByLabel(ctx, label4)
 	assert.NoError(t, err)
 	n = rtb.routes // root: there is no child route under the root node, so all nodes should be removed
 	assert.NotNil(t, n)
 	assert.Nil(t, n.route)
 	assert.Nil(t, n.zeroBitNode)
 	assert.Nil(t, n.oneBitNode)
-	found, _ = rtb.FindRoute(net.IP{192, 0, 128, 1})
+	found, _ = rtb.FindRoute(ctx, net.IP{192, 0, 128, 1})
 	assert.False(t, found)
 }
