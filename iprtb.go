@@ -125,8 +125,8 @@ func (rt *RouteTable) addRoute(ctx context.Context, route *Route) error {
 	return nil
 }
 
-// RemoveRoute removes a route that is associated with a given destination.
-// If there is no route to remove, this does nothing.
+// RemoveRoute removes a route that is associated with a given destination. This returns the removed route information that is wrapped by optional.
+// If there is no route to remove, this does nothing and returns `None` as the removed route.
 func (rt *RouteTable) RemoveRoute(ctx context.Context, destination *net.IPNet) (optional.Option[Route], error) {
 	rt.mu.Lock()
 	defer rt.mu.Unlock()
@@ -142,8 +142,8 @@ func (rt *RouteTable) RemoveRoute(ctx context.Context, destination *net.IPNet) (
 	return maybeRemovedRoute, nil
 }
 
-// RemoveRouteByLabel removes a route that is associated with a given label, instead of the actual destination information.
-// If there is no route that is associated with a given label or the actual destination, this function does nothing.
+// RemoveRouteByLabel removes a route that is associated with a given label, instead of the actual destination information. This returns the removed route information that is wrapped by optional.
+// If there is no route that is associated with a given label or the actual destination, this function does nothing and returns `None` as the removed route.
 func (rt *RouteTable) RemoveRouteByLabel(ctx context.Context, label string) (optional.Option[Route], error) {
 	rt.mu.Lock()
 	defer rt.mu.Unlock()
