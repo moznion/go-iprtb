@@ -125,54 +125,55 @@ func (rt *RouteTable) addRoute(ctx context.Context, route *Route) error {
 	return nil
 }
 
-// RemoveRoute removes a route that is associated with a given destination.
-// If there is no route to remove, this does nothing.
-func (rt *RouteTable) RemoveRoute(ctx context.Context, destination *net.IPNet) error {
+// RemoveRoute removes a route that is associated with a given destination. This returns the removed route information that is wrapped by optional.
+// If there is no route to remove, this does nothing and returns `None` as the removed route.
+func (rt *RouteTable) RemoveRoute(ctx context.Context, destination *net.IPNet) (optional.Option[Route], error) {
 	rt.mu.Lock()
 	defer rt.mu.Unlock()
 
-	err := rt.removeRoute(ctx, destination)
+	maybeRemovedRoute, err := rt.removeRoute(ctx, destination)
 	if err != nil {
-		return err
+		return optional.None[Route](), err
 	}
 	if label, ok := rt.destination2Label[destination.String()]; ok {
 		delete(rt.destination2Label, destination.String())
 		delete(rt.label2Destination, label)
 	}
-	return nil
+	return maybeRemovedRoute, nil
 }
 
-// RemoveRouteByLabel removes a route that is associated with a given label, instead of the actual destination information.
-// If there is no route that is associated with a given label or the actual destination, this function does nothing.
-func (rt *RouteTable) RemoveRouteByLabel(ctx context.Context, label string) error {
+// RemoveRouteByLabel removes a route that is associated with a given label, instead of the actual destination information. This returns the removed route information that is wrapped by optional.
+// If there is no route that is associated with a given label or the actual destination, this function does nothing and returns `None` as the removed route.
+func (rt *RouteTable) RemoveRouteByLabel(ctx context.Context, label string) (optional.Option[Route], error) {
 	rt.mu.Lock()
 	defer rt.mu.Unlock()
 
 	destination := rt.label2Destination[label]
 	if destination == nil {
-		return nil
+		return nil, nil
 	}
 
-	err := rt.removeRoute(ctx, destination)
+	maybeRemovedRoute, err := rt.removeRoute(ctx, destination)
 	if err != nil {
-		return err
+		return optional.None[Route](), err
 	}
 	delete(rt.label2Destination, label)
 	delete(rt.destination2Label, destination.String())
-	return nil
+	return maybeRemovedRoute, nil
 }
 
-func (rt *RouteTable) removeRoute(ctx context.Context, destination *net.IPNet) error {
+func (rt *RouteTable) removeRoute(ctx context.Context, destination *net.IPNet) (optional.Option[Route], error) {
 	prevNode := rt.routes // root
 	maskLen, _ := destination.Mask.Size()
 	if maskLen <= 0 {
+		removedRoute := optional.FromNillable[Route](prevNode.route)
 		prevNode.route = nil
-		return nil
+		return removedRoute, nil
 	}
 
 	dstIP, err := adjustIPLength(destination.IP)
 	if err != nil {
-		return fmt.Errorf("failed to remove a route: %w", err)
+		return optional.None[Route](), fmt.Errorf("failed to remove a route: %w", err)
 	}
 
 	var pathNodes []**node // to brune the not terminated branch
@@ -192,11 +193,13 @@ func (rt *RouteTable) removeRoute(ctx context.Context, destination *net.IPNet) e
 
 			if *nextNode == nil {
 				// there is no terminal route that is associated with the given destination to remove; do nothing
-				return nil
+				return optional.None[Route](), nil
 			}
 
 			if maskLen <= 0 {
+				removedRoute := optional.None[Route]()
 				if (*nextNode).route != nil {
+					removedRoute = optional.Some[Route](*((*nextNode).route))
 					// node terminated: should remove a route
 					if (*nextNode).zeroBitNode == nil && (*nextNode).oneBitNode == nil {
 						// this terminal node doesn't have any children; do pruning including the terminal node itself
@@ -218,7 +221,7 @@ func (rt *RouteTable) removeRoute(ctx context.Context, destination *net.IPNet) e
 						(*nextNode).route = nil
 					}
 				}
-				return nil
+				return removedRoute, nil
 			}
 
 			if (*nextNode).route == nil {
@@ -233,7 +236,7 @@ func (rt *RouteTable) removeRoute(ctx context.Context, destination *net.IPNet) e
 		}
 	}
 
-	return nil
+	return optional.None[Route](), nil
 }
 
 // ClearRoutes removes all routes from the routing table.
