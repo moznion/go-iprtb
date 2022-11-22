@@ -200,10 +200,19 @@ func (rt *RouteTable) removeRoute(ctx context.Context, destination *net.IPNet) e
 					// node terminated: should remove a route
 					if (*nextNode).zeroBitNode == nil && (*nextNode).oneBitNode == nil {
 						// this terminal node doesn't have any children; do pruning including the terminal node itself
-						for _, pathNode := range pathNodes {
-							*pathNode = nil
-						}
+						// NOTE: it must apply the node pruning processing as reverse order (i.e. the direction from child to parent).
 						*nextNode = nil
+
+						pathNodesLen := len(pathNodes)
+						for i := pathNodesLen - 1; i >= 0; i-- {
+							pathNode := pathNodes[i]
+							if (*pathNode).zeroBitNode == nil && (*pathNode).oneBitNode == nil {
+								*pathNode = nil
+							} else {
+								// if the currently processed node isn't removed, the all following nodes (i.e. ancestor nodes) have at least one child, so it's okay to break the processing here.
+								break
+							}
+						}
 					} else {
 						// this node has some children, so it removes only routing info
 						(*nextNode).route = nil
