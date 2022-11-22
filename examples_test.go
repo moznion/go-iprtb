@@ -165,10 +165,12 @@ func ExampleRouteTable_RemoveRoute() {
 	}
 	fmt.Println(found)
 
-	err = rtb.RemoveRoute(ctx, dst)
+	maybeRemovedRoute, err := rtb.RemoveRoute(ctx, dst)
 	if err != nil {
 		panic(err)
 	}
+	removedRoute := maybeRemovedRoute.Unwrap()
+	fmt.Printf("removed route: destination %s, gateway %s, networkInterface %s, metric %d\n", removedRoute.Destination, removedRoute.Gateway, removedRoute.NetworkInterface, removedRoute.Metric)
 
 	// route has been removed
 	found, err = rtb.FindRoute(ctx, net.IPv4(192, 0, 2, 100))
@@ -179,6 +181,7 @@ func ExampleRouteTable_RemoveRoute() {
 
 	// Output:
 	// true
+	// removed route: destination 192.0.2.0/24, gateway 192.0.2.1, networkInterface ifb0, metric 1
 	// false
 }
 
@@ -207,10 +210,12 @@ func ExampleRouteTable_RemoveRouteByLabel() {
 	}
 	fmt.Println(found)
 
-	err = rtb.RemoveRouteByLabel(ctx, label)
+	maybeRemovedRoute, err := rtb.RemoveRouteByLabel(ctx, label)
 	if err != nil {
 		panic(err)
 	}
+	removedRoute := maybeRemovedRoute.Unwrap()
+	fmt.Printf("removed route: destination %s, gateway %s, networkInterface %s, metric %d\n", removedRoute.Destination, removedRoute.Gateway, removedRoute.NetworkInterface, removedRoute.Metric)
 
 	// route has been removed
 	found, err = rtb.FindRoute(ctx, net.IPv4(192, 0, 2, 100))
@@ -221,6 +226,7 @@ func ExampleRouteTable_RemoveRouteByLabel() {
 
 	// Output:
 	// true
+	// removed route: destination 192.0.2.0/24, gateway 192.0.2.1, networkInterface ifb0, metric 1
 	// false
 }
 

@@ -158,8 +158,9 @@ func TestRouteTable_RemoveRoute(t *testing.T) {
 		assert.Equal(t, route2.Gateway, maybeMatchedRoute.Unwrap().Gateway)
 	}
 
-	err = rtb.RemoveRoute(ctx, route1.Destination)
+	maybeRemovedRoute, err := rtb.RemoveRoute(ctx, route1.Destination)
 	assert.NoError(t, err)
+	assert.EqualValues(t, *route1, maybeRemovedRoute.Unwrap())
 	{
 		maybeMatchedRoute, err := rtb.MatchRoute(ctx, net.IPv4(192, 0, 2, 100))
 		assert.NoError(t, err)
@@ -172,8 +173,9 @@ func TestRouteTable_RemoveRoute(t *testing.T) {
 		assert.Equal(t, route2.Gateway, maybeMatchedRoute.Unwrap().Gateway)
 	}
 
-	err = rtb.RemoveRoute(ctx, route2.Destination)
+	maybeRemovedRoute, err = rtb.RemoveRoute(ctx, route2.Destination)
 	assert.NoError(t, err)
+	assert.EqualValues(t, *route2, maybeRemovedRoute.Unwrap())
 	{
 		maybeMatchedRoute, err := rtb.MatchRoute(ctx, net.IPv4(192, 0, 2, 100))
 		assert.NoError(t, err)
@@ -189,8 +191,9 @@ func TestRouteTable_RemoveRoute(t *testing.T) {
 		IP:   net.IPv4(192, 0, 3, 255),
 		Mask: net.IPv4Mask(255, 255, 255, 255),
 	}
-	err = rtb.RemoveRoute(ctx, notExistingRoute)
+	maybeRemovedRoute, err = rtb.RemoveRoute(ctx, notExistingRoute)
 	assert.NoError(t, err)
+	assert.True(t, maybeRemovedRoute.IsNone())
 	{
 		maybeMatchedRoute, err := rtb.MatchRoute(ctx, net.IPv4(192, 0, 2, 100))
 		assert.NoError(t, err)
@@ -271,11 +274,12 @@ func TestRouteTable_RemoveRoute_DefaultRoute(t *testing.T) {
 		assert.Equal(t, route.Gateway, maybeMatchedRoute.Unwrap().Gateway)
 	}
 
-	err = rtb.RemoveRoute(ctx, &net.IPNet{
+	maybeRemovedRoute, err := rtb.RemoveRoute(ctx, &net.IPNet{
 		IP:   net.IPv4(0, 0, 0, 0),
 		Mask: net.IPv4Mask(0, 0, 0, 0),
 	})
 	assert.NoError(t, err)
+	assert.EqualValues(t, *route, maybeRemovedRoute.Unwrap())
 
 	{
 		maybeMatchedRoute, err := rtb.MatchRoute(ctx, net.IPv4(192, 0, 3, 0))
@@ -316,11 +320,12 @@ func TestRouteTable_RemoveRoute_WithInvalidIPv6(t *testing.T) {
 
 	rtb := NewRouteTable()
 
-	err := rtb.RemoveRoute(ctx, &net.IPNet{
+	maybeRemovedRoute, err := rtb.RemoveRoute(ctx, &net.IPNet{
 		IP:   net.IP{0xff, 0xff, 0xff, 0xff, 0xff},
 		Mask: net.IPMask{0xff, 0xff, 0xff, 0xff, 0xff},
 	})
 	assert.ErrorIs(t, err, ErrInvalidIPv6Length)
+	assert.True(t, maybeRemovedRoute.IsNone())
 }
 
 func TestRouteTable_AddRoute_ForUpdate(t *testing.T) {
@@ -572,8 +577,17 @@ func TestRouteTable_WithLabel(t *testing.T) {
 		assert.Equal(t, net.IPv4(192, 0, 2, 2), maybeMatchedRoute.Unwrap().Gateway)
 	}
 
-	err = rtb.RemoveRouteByLabel(ctx, label)
+	maybeRemovedRoute, err := rtb.RemoveRouteByLabel(ctx, label)
 	assert.NoError(t, err)
+	assert.EqualValues(t, Route{
+		Destination: &net.IPNet{
+			IP:   net.IPv4(192, 0, 2, 0),
+			Mask: net.IPv4Mask(255, 255, 255, 0),
+		},
+		Gateway:          net.IPv4(192, 0, 2, 2), // this is updated at the above
+		NetworkInterface: "ifb0",
+		Metric:           1,
+	}, maybeRemovedRoute.Unwrap())
 	{
 		maybeMatchedRoute, err := rtb.MatchRoute(ctx, net.IPv4(192, 0, 2, 100))
 		assert.NoError(t, err)
@@ -618,8 +632,9 @@ func TestRouteTable_WithNotExistedLabel(t *testing.T) {
 		assert.Equal(t, route.Gateway, maybeMatchedRoute.Unwrap().Gateway)
 	}
 
-	err = rtb.RemoveRouteByLabel(ctx, "__invalid_label__")
+	maybeRemovedRoute, err := rtb.RemoveRouteByLabel(ctx, "__invalid_label__")
 	assert.NoError(t, err)
+	assert.True(t, maybeRemovedRoute.IsNone())
 	{
 		// should not be affected
 		maybeMatchedRoute, err := rtb.MatchRoute(ctx, net.IPv4(192, 0, 2, 100))
@@ -658,8 +673,9 @@ func TestRouteTable_RemoveRouteByLabel_WithInvalidIpv6(t *testing.T) {
 		Mask: net.IPMask{0xff, 0xff, 0xff, 0xff, 0xff},
 	}
 
-	err := rtb.RemoveRouteByLabel(ctx, label)
+	maybeRemovedRoute, err := rtb.RemoveRouteByLabel(ctx, label)
 	assert.ErrorIs(t, err, ErrInvalidIPv6Length)
+	assert.True(t, maybeRemovedRoute.IsNone())
 }
 
 func TestRouteTable_DumpRouteTable(t *testing.T) {
@@ -802,38 +818,42 @@ func TestRouteTable_RemoveRoute_DestroysLabelMapping(t *testing.T) {
 		IP:   net.IPv4(192, 0, 2, 0),
 		Mask: net.IPv4Mask(255, 255, 255, 0),
 	}
-	err := rtb.AddRouteWithLabel(ctx, "__label1__", &Route{
+	route1 := &Route{
 		Destination:      dst1,
 		Gateway:          net.IPv4(192, 0, 2, 1),
 		NetworkInterface: "ifb0",
 		Metric:           1,
-	})
+	}
+	err := rtb.AddRouteWithLabel(ctx, "__label1__", route1)
 	assert.NoError(t, err)
 
 	dst2 := &net.IPNet{
 		IP:   net.IPv4(192, 0, 2, 255),
-		Mask: net.IPv4Mask(255, 255, 255, 0),
+		Mask: net.IPv4Mask(255, 255, 255, 255),
 	}
-	err = rtb.AddRouteWithLabel(ctx, "__label2__", &Route{
+	route2 := &Route{
 		Destination:      dst2,
 		Gateway:          net.IPv4(192, 0, 2, 255),
 		NetworkInterface: "ifb0",
 		Metric:           1,
-	})
+	}
+	err = rtb.AddRouteWithLabel(ctx, "__label2__", route2)
 	assert.NoError(t, err)
 
 	assert.Len(t, rtb.label2Destination, 2)
 	assert.Len(t, rtb.destination2Label, 2)
 
-	err = rtb.RemoveRoute(ctx, dst1)
+	maybeRemovedRoute, err := rtb.RemoveRoute(ctx, dst1)
 	assert.NoError(t, err)
+	assert.EqualValues(t, *route1, maybeRemovedRoute.Unwrap())
 
 	// should remove an internal mapping for a label
 	assert.Len(t, rtb.label2Destination, 1)
 	assert.Len(t, rtb.destination2Label, 1)
 
-	err = rtb.RemoveRoute(ctx, dst2)
+	maybeRemovedRoute, err = rtb.RemoveRoute(ctx, dst2)
 	assert.NoError(t, err)
+	assert.EqualValues(t, *route2, maybeRemovedRoute.Unwrap())
 
 	// should remove an internal mapping for a label (i.e. removes all)
 	assert.Empty(t, rtb.label2Destination)
@@ -859,11 +879,12 @@ func TestRouteTable_RemoveRoute_DoNotDeleteWhenTheTargetDoesNotTerminate(t *test
 	found, _ := rtb.FindRoute(ctx, net.IP{192, 0, 2, 100})
 	assert.True(t, found)
 
-	err = rtb.RemoveRoute(ctx, &net.IPNet{
+	maybeRemovedRoute, err := rtb.RemoveRoute(ctx, &net.IPNet{
 		IP:   net.IPv4(192, 0, 2, 0),
 		Mask: net.IPv4Mask(255, 255, 254, 0),
 	})
 	assert.NoError(t, err)
+	assert.True(t, maybeRemovedRoute.IsNone())
 
 	found, _ = rtb.FindRoute(ctx, net.IP{192, 0, 2, 100})
 	assert.True(t, found)
@@ -902,7 +923,7 @@ func TestRouteTable_RemoveRoute_WithNotTerminatedBranchPruning(t *testing.T) {
 	 *                   /
 	 *                  0... (7 nodes)
 	 *                 /
-	 *               [0] GW3 <= 3) if this route has been removed, this node should be keeped but the route terminal has to be removed
+	 *               [0] GW3 <= 3) if this route has been removed, this node should be kept but the route terminal has to be removed
 	 *               / \
 	 *              0  [1] GW4 <= 4) if this route has been removed, the above nodes until the root node also should be removed
 	 *             /
@@ -922,7 +943,7 @@ func TestRouteTable_RemoveRoute_WithNotTerminatedBranchPruning(t *testing.T) {
 	 */
 
 	label1 := "label1"
-	err := rtb.AddRouteWithLabel(ctx, label1, &Route{
+	route1 := &Route{
 		Destination: &net.IPNet{
 			IP:   net.IPv4(192, 0, 2, 0),
 			Mask: net.IPv4Mask(255, 255, 255, 0),
@@ -930,11 +951,12 @@ func TestRouteTable_RemoveRoute_WithNotTerminatedBranchPruning(t *testing.T) {
 		Gateway:          net.IPv4(192, 0, 2, 1),
 		NetworkInterface: "ifb1",
 		Metric:           1,
-	})
+	}
+	err := rtb.AddRouteWithLabel(ctx, label1, route1)
 	assert.NoError(t, err)
 
 	label2 := "label2"
-	err = rtb.AddRouteWithLabel(ctx, label2, &Route{
+	route2 := &Route{
 		Destination: &net.IPNet{
 			IP:   net.IPv4(192, 0, 0, 0),
 			Mask: net.IPv4Mask(255, 255, 252, 0),
@@ -942,11 +964,12 @@ func TestRouteTable_RemoveRoute_WithNotTerminatedBranchPruning(t *testing.T) {
 		Gateway:          net.IPv4(192, 0, 0, 0),
 		NetworkInterface: "ifb2",
 		Metric:           1,
-	})
+	}
+	err = rtb.AddRouteWithLabel(ctx, label2, route2)
 	assert.NoError(t, err)
 
 	label3 := "label3"
-	err = rtb.AddRouteWithLabel(ctx, label3, &Route{
+	route3 := &Route{
 		Destination: &net.IPNet{
 			IP:   net.IPv4(192, 0, 0, 0),
 			Mask: net.IPv4Mask(255, 255, 0, 0),
@@ -954,11 +977,12 @@ func TestRouteTable_RemoveRoute_WithNotTerminatedBranchPruning(t *testing.T) {
 		Gateway:          net.IPv4(192, 255, 0, 0),
 		NetworkInterface: "ifb3",
 		Metric:           1,
-	})
+	}
+	err = rtb.AddRouteWithLabel(ctx, label3, route3)
 	assert.NoError(t, err)
 
 	label4 := "label4"
-	err = rtb.AddRouteWithLabel(ctx, label4, &Route{
+	route4 := &Route{
 		Destination: &net.IPNet{
 			IP:   net.IPv4(192, 0, 128, 0),
 			Mask: net.IPv4Mask(255, 255, 128, 0),
@@ -966,15 +990,17 @@ func TestRouteTable_RemoveRoute_WithNotTerminatedBranchPruning(t *testing.T) {
 		Gateway:          net.IPv4(192, 255, 0, 0),
 		NetworkInterface: "ifb4",
 		Metric:           1,
-	})
+	}
+	err = rtb.AddRouteWithLabel(ctx, label4, route4)
 	assert.NoError(t, err)
 
 	// attempt to remove by not terminated node, but it should do nothing
-	err = rtb.RemoveRoute(ctx, &net.IPNet{
+	maybeRemovedRoute, err := rtb.RemoveRoute(ctx, &net.IPNet{
 		IP:   net.IPv4(192, 0, 2, 0),
 		Mask: net.IPv4Mask(255, 255, 254, 0),
 	})
 	assert.NoError(t, err)
+	assert.True(t, maybeRemovedRoute.IsNone())
 	found, _ := rtb.FindRoute(ctx, net.IP{192, 0, 2, 100})
 	assert.True(t, found)
 
@@ -988,8 +1014,9 @@ func TestRouteTable_RemoveRoute_WithNotTerminatedBranchPruning(t *testing.T) {
 	maybeMatched, _ := rtb.MatchRoute(ctx, net.IP{192, 0, 2, 100})
 	assert.EqualValues(t, "ifb1", maybeMatched.Unwrap().NetworkInterface)
 
-	err = rtb.RemoveRouteByLabel(ctx, label1)
+	maybeRemovedRoute, err = rtb.RemoveRouteByLabel(ctx, label1)
 	assert.NoError(t, err)
+	assert.EqualValues(t, *route1, maybeRemovedRoute.Unwrap())
 	assert.Nil(t,
 		rtb.routes.oneBitNode.oneBitNode.zeroBitNode.zeroBitNode.zeroBitNode.zeroBitNode.zeroBitNode.zeroBitNode.
 			zeroBitNode.zeroBitNode.zeroBitNode.zeroBitNode.zeroBitNode.zeroBitNode.zeroBitNode.zeroBitNode.
@@ -1006,14 +1033,15 @@ func TestRouteTable_RemoveRoute_WithNotTerminatedBranchPruning(t *testing.T) {
 	maybeMatched, _ = rtb.MatchRoute(ctx, net.IP{192, 0, 2, 100})
 	assert.EqualValues(t, "ifb2", maybeMatched.Unwrap().NetworkInterface)
 
-	err = rtb.RemoveRouteByLabel(ctx, label2)
+	maybeRemovedRoute, err = rtb.RemoveRouteByLabel(ctx, label2)
+	assert.NoError(t, err)
+	assert.EqualValues(t, *route2, maybeRemovedRoute.Unwrap())
 	assert.Nil(t,
 		rtb.routes.oneBitNode.oneBitNode.zeroBitNode.zeroBitNode.zeroBitNode.zeroBitNode.zeroBitNode.zeroBitNode.
 			zeroBitNode.zeroBitNode.zeroBitNode.zeroBitNode.zeroBitNode.zeroBitNode.zeroBitNode.zeroBitNode.
 			zeroBitNode,
 		"the not terminal branch should be removed",
 	)
-	assert.NoError(t, err)
 	n = rtb.routes.oneBitNode.oneBitNode.zeroBitNode.zeroBitNode.zeroBitNode.zeroBitNode.zeroBitNode.zeroBitNode.
 		zeroBitNode.zeroBitNode.zeroBitNode.zeroBitNode.zeroBitNode.zeroBitNode.zeroBitNode.zeroBitNode
 	assert.NotNil(t, n)
@@ -1023,8 +1051,9 @@ func TestRouteTable_RemoveRoute_WithNotTerminatedBranchPruning(t *testing.T) {
 	maybeMatched, _ = rtb.MatchRoute(ctx, net.IP{192, 0, 2, 100})
 	assert.EqualValues(t, "ifb3", maybeMatched.Unwrap().NetworkInterface)
 
-	err = rtb.RemoveRouteByLabel(ctx, label3)
+	maybeRemovedRoute, err = rtb.RemoveRouteByLabel(ctx, label3)
 	assert.NoError(t, err)
+	assert.EqualValues(t, *route3, maybeRemovedRoute.Unwrap())
 	n = rtb.routes.oneBitNode.oneBitNode.zeroBitNode.zeroBitNode.zeroBitNode.zeroBitNode.zeroBitNode.zeroBitNode.
 		zeroBitNode.zeroBitNode.zeroBitNode.zeroBitNode.zeroBitNode.zeroBitNode.zeroBitNode.zeroBitNode
 	assert.NotNil(t, n)
@@ -1036,8 +1065,9 @@ func TestRouteTable_RemoveRoute_WithNotTerminatedBranchPruning(t *testing.T) {
 	maybeMatched, _ = rtb.MatchRoute(ctx, net.IP{192, 0, 128, 1})
 	assert.EqualValues(t, "ifb4", maybeMatched.Unwrap().NetworkInterface)
 
-	err = rtb.RemoveRouteByLabel(ctx, label4)
+	maybeRemovedRoute, err = rtb.RemoveRouteByLabel(ctx, label4)
 	assert.NoError(t, err)
+	assert.EqualValues(t, *route4, maybeRemovedRoute.Unwrap())
 	n = rtb.routes // root: there is no child route under the root node, so all nodes should be removed
 	assert.NotNil(t, n)
 	assert.Nil(t, n.route)
