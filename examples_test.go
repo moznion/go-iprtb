@@ -2,6 +2,7 @@ package iprtb
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net"
 )
@@ -401,4 +402,44 @@ func ExampleRouteTable_ClearRoutes() {
 	// 192.0.2.255/32	192.0.2.255	ifb0	1
 	// false
 	// false
+}
+
+func ExampleRoute_MarshalJSON() {
+	r := &Route{
+		Destination: &net.IPNet{
+			IP:   net.IPv4(192, 0, 2, 0).To4(),
+			Mask: net.IPv4Mask(255, 255, 255, 0),
+		},
+		Gateway:          net.IPv4(192, 0, 2, 1),
+		NetworkInterface: "ifb0",
+		Metric:           1,
+	}
+
+	marshalled, err := json.Marshal(r)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Printf("%s\n", marshalled)
+
+	// Output:
+	// {"destination":"192.0.2.0/24","gateway":"192.0.2.1","networkInterface":"ifb0","metric":1}
+}
+
+func ExampleRoute_UnmarshalJSON() {
+	var r Route
+	err := json.Unmarshal([]byte(`{"destination":"192.0.2.0/24","gateway":"192.0.2.1","networkInterface":"ifb0","metric":1}`), &r)
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Printf("destination: %s\n", r.Destination.String())
+	fmt.Printf("gateway: %s\n", r.Gateway.String())
+	fmt.Printf("networkInterface: %s\n", r.NetworkInterface)
+	fmt.Printf("metric: %d\n", r.Metric)
+
+	// Output:
+	// destination: 192.0.2.0/24
+	// gateway: 192.0.2.1
+	// networkInterface: ifb0
+	// metric: 1
 }
