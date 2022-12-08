@@ -3,7 +3,7 @@ module github.com/moznion/go-iprtb
 go 1.19
 
 require (
-	github.com/moznion/go-optional v0.8.0
+	github.com/moznion/go-optional v0.10.0
 	github.com/stretchr/testify v1.8.1
 )
 
