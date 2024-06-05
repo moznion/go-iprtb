@@ -1,9 +1,11 @@
 module github.com/moznion/go-iprtb
 
-go 1.19
+go 1.21
+
+toolchain go1.22.4
 
 require (
-	github.com/moznion/go-optional v0.11.0
+	github.com/moznion/go-optional v0.12.0
 	github.com/stretchr/testify v1.9.0
 )
 
