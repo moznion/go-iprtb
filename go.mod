@@ -1,6 +1,6 @@
 module github.com/moznion/go-iprtb
 
-go 1.19
+go 1.22
 
 require (
 	github.com/moznion/go-optional v0.11.0
