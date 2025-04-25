@@ -3,8 +3,8 @@ module github.com/moznion/go-iprtb
 go 1.22
 
 require (
-	github.com/moznion/go-optional v0.11.0
-	github.com/stretchr/testify v1.9.0
+	github.com/moznion/go-optional v0.13.0
+	github.com/stretchr/testify v1.10.0
 )
 
 require (
